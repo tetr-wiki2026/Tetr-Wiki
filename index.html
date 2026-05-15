@@ -1,46 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TETR Knowledge Base | AI-Powered Assistant</title>
   
-  <!-- Transformers.js - The only library you need -->
+  <!-- Transformers.js -->
   <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.13.0/dist/transformers.min.js"></script>
   
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: 'Segoe UI', system-ui, sans-serif;
       background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
       min-height: 100vh;
     }
-
-    /* Header Navigation */
     .navbar {
       background: #004822;
       padding: 16px 32px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      position: sticky;
-      top: 0;
-      z-index: 100;
     }
-
-    .logo-area {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
     .logo-icon {
       width: 40px;
       height: 40px;
@@ -53,39 +34,13 @@
       font-weight: bold;
       color: white;
     }
-
-    .logo-text h1 {
-      color: white;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-
-    .logo-text p {
-      color: rgba(255,255,255,0.7);
-      font-size: 11px;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 24px;
-    }
-
+    .logo-text h1 { color: white; font-size: 20px; }
+    .logo-text p { color: rgba(255,255,255,0.7); font-size: 12px; }
     .nav-link {
       color: white;
       text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      padding: 8px 0;
-      border-bottom: 2px solid transparent;
-      transition: 0.2s;
+      cursor: pointer;
     }
-
-    .nav-link:hover {
-      border-bottom-color: #009C50;
-    }
-
-    /* Loading Overlay */
     #loadingOverlay {
       position: fixed;
       top: 0;
@@ -99,242 +54,96 @@
       align-items: center;
       flex-direction: column;
     }
-
     .loading-card {
       background: white;
       padding: 40px;
       border-radius: 24px;
       text-align: center;
       max-width: 400px;
-      margin: 20px;
     }
-
-    .loading-icon {
-      font-size: 48px;
-      margin-bottom: 20px;
-    }
-
-    .loading-card h3 {
-      color: #004822;
-      margin-bottom: 12px;
-    }
-
-    .loading-card p {
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 14px;
-    }
-
     .progress-bar-container {
       width: 100%;
       height: 8px;
       background: #e0e0e0;
       border-radius: 4px;
       overflow: hidden;
-      margin-bottom: 16px;
+      margin: 20px 0;
     }
-
     .progress-bar {
       width: 0%;
       height: 100%;
       background: #009C50;
       transition: width 0.3s;
     }
-
-    .loading-status {
-      font-size: 12px;
-      color: #999;
-    }
-
-    /* Main Container */
-    .main-container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 32px;
-    }
-
-    /* Welcome Hero */
+    .loading-status { font-size: 12px; color: #666; }
+    .main-container { max-width: 1200px; margin: 0 auto; padding: 32px; }
     .hero {
-      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      background: white;
       border-radius: 24px;
       padding: 48px;
-      margin-bottom: 40px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-      border: 1px solid rgba(0,156,80,0.15);
       text-align: center;
+      margin-bottom: 32px;
     }
-
-    .hero h2 {
-      font-size: 32px;
-      color: #004822;
-      margin-bottom: 12px;
-      font-weight: 700;
-    }
-
-    .hero p {
-      color: #5a6a7a;
-      font-size: 16px;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
+    .hero h2 { color: #004822; font-size: 32px; margin-bottom: 12px; }
     .hero-badge {
-      display: inline-block;
       background: #e8f5e9;
       color: #009C50;
       padding: 6px 14px;
       border-radius: 40px;
       font-size: 12px;
-      font-weight: 600;
+      display: inline-block;
       margin-bottom: 20px;
     }
-
-    /* Two Column Layout */
-    .two-columns {
-      display: grid;
-      grid-template-columns: 1fr 360px;
-      gap: 32px;
-    }
-
-    /* Chat Panel */
-    .chat-panel {
+    .chat-container {
       background: white;
       border-radius: 24px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
       overflow: hidden;
-      border: 1px solid #eef2f6;
-      display: flex;
-      flex-direction: column;
-      height: 70vh;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     }
-
     .chat-header {
       background: #004822;
       padding: 20px 24px;
       color: white;
     }
-
-    .chat-header h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .chat-header p {
-      font-size: 12px;
-      opacity: 0.8;
-    }
-
     .chat-messages {
-      flex: 1;
+      height: 500px;
       overflow-y: auto;
       padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
       background: #fafbfc;
     }
-
     .message {
-      max-width: 85%;
+      max-width: 80%;
       padding: 12px 18px;
       border-radius: 20px;
+      margin-bottom: 16px;
       line-height: 1.5;
-      font-size: 14px;
-      animation: fadeIn 0.3s ease;
     }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
     .user-message {
-      align-self: flex-end;
       background: #009C50;
       color: white;
+      margin-left: auto;
       border-bottom-right-radius: 4px;
     }
-
     .bot-message {
-      align-self: flex-start;
       background: white;
-      color: #1a2a3a;
       border: 1px solid #e2e8f0;
       border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
-
-    .bot-message strong {
-      color: #004822;
-    }
-
-    .bot-message hr {
-      margin: 12px 0;
-      border: none;
-      border-top: 1px solid #eef2f6;
-    }
-
-    .confidence-badge {
-      display: inline-block;
-      background: #e8f5e9;
-      color: #009C50;
-      padding: 4px 10px;
-      border-radius: 16px;
-      font-size: 11px;
-      font-weight: 600;
-      margin-top: 8px;
-    }
-
-    .typing-indicator {
-      align-self: flex-start;
-      background: white;
-      padding: 12px 18px;
-      border-radius: 20px;
-      border: 1px solid #e2e8f0;
-      display: flex;
-      gap: 4px;
-    }
-
-    .typing-indicator span {
-      width: 8px;
-      height: 8px;
-      background: #009C50;
-      border-radius: 50%;
-      animation: blink 1.4s infinite;
-    }
-
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
-    @keyframes blink {
-      0%, 100% { opacity: 0.3; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-4px); }
-    }
-
+    .bot-message strong { color: #004822; }
     .input-area {
       padding: 20px 24px;
-      background: white;
       border-top: 1px solid #eef2f6;
       display: flex;
       gap: 12px;
     }
-
     .input-area input {
       flex: 1;
       padding: 14px 18px;
       border: 1px solid #dce3e9;
       border-radius: 48px;
-      font-size: 14px;
       outline: none;
-      transition: 0.2s;
     }
-
-    .input-area input:focus {
-      border-color: #009C50;
-      box-shadow: 0 0 0 3px rgba(0,156,80,0.1);
-    }
-
+    .input-area input:focus { border-color: #009C50; }
     .input-area button {
       background: #009C50;
       border: none;
@@ -342,492 +151,369 @@
       padding: 12px 28px;
       color: white;
       font-weight: 600;
-      font-size: 14px;
       cursor: pointer;
-      transition: 0.2s;
     }
-
-    .input-area button:hover {
-      background: #007a3e;
-      transform: translateY(-1px);
-    }
-
-    .input-area button:active {
-      transform: translateY(0);
-    }
-
-    /* Stats Panel */
-    .stats-panel {
+    .footer { text-align: center; padding: 32px; color: #7a8a9a; font-size: 12px; }
+    .typing-indicator {
       background: white;
-      border-radius: 24px;
-      border: 1px solid #eef2f6;
-      overflow: hidden;
+      padding: 12px 18px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      display: inline-block;
     }
-
-    .stats-header {
-      background: #004822;
-      padding: 20px 24px;
-      color: white;
-    }
-
-    .stats-header h3 {
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .stats-content {
-      padding: 24px;
-    }
-
-    .stat-card {
-      background: #f8fafc;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 32px;
-      font-weight: 800;
-      color: #004822;
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: #5a6a7a;
-      margin-top: 4px;
-    }
-
-    .category-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .category-tag {
-      background: #e8f5e9;
-      color: #009C50;
-      padding: 6px 14px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .footer {
-      text-align: center;
-      padding: 32px;
-      color: #7a8a9a;
-      font-size: 12px;
-    }
-
-    /* Scrollbar */
-    .chat-messages::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .chat-messages::-webkit-scrollbar-track {
-      background: #eef2f6;
-      border-radius: 10px;
-    }
-
-    .chat-messages::-webkit-scrollbar-thumb {
+    .typing-indicator span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
       background: #009C50;
-      border-radius: 10px;
+      border-radius: 50%;
+      animation: blink 1.4s infinite;
+      margin: 0 2px;
     }
-
-    /* Responsive */
-    @media (max-width: 900px) {
-      .two-columns {
-        grid-template-columns: 1fr;
-      }
-      .hero {
-        padding: 32px 24px;
-      }
-      .navbar {
-        padding: 12px 20px;
-      }
-      .main-container {
-        padding: 20px;
-      }
-    }
+    @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    @media (max-width: 900px) { .main-container { padding: 20px; } .hero { padding: 32px 24px; } }
   </style>
 </head>
 <body>
 
-  <!-- Loading Overlay -->
-  <div id="loadingOverlay">
-    <div class="loading-card">
-      <div class="loading-icon">🧠</div>
-      <h3>Loading Tetr AI Assistant</h3>
-      <p>First-time setup: Downloading AI models (~23 MB)...</p>
-      <div class="progress-bar-container">
-        <div class="progress-bar" id="progressBar"></div>
-      </div>
-      <div class="loading-status" id="loadingStatus">Initializing...</div>
-      <p style="font-size: 11px; margin-top: 20px; color: #999;">This happens once. Future visits will be instant.</p>
+<div id="loadingOverlay">
+  <div class="loading-card">
+    <div class="loading-icon">🧠</div>
+    <h3>Loading Tetr AI Assistant</h3>
+    <p id="loadingMessage">Initializing...</p>
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progressBar"></div>
     </div>
+    <div class="loading-status" id="loadingStatus">Checking AI models...</div>
+    <p style="font-size: 11px; margin-top: 20px;">AI models download once (90 MB) then work offline.<br>CSV data refreshes each session.</p>
+  </div>
+</div>
+
+<div class="navbar">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div class="logo-icon">T</div>
+    <div class="logo-text"><h1>TETR Knowledge Base</h1><p>AI-Powered Information Quality Evaluator</p></div>
+  </div>
+  <a href="#" class="nav-link" onclick="resetChat(); return false;">New Chat</a>
+</div>
+
+<div class="main-container">
+  <div class="hero">
+    <div class="hero-badge">⚡ AI-Powered Semantic Search</div>
+    <h2>Ask me anything about Tetr</h2>
+    <p>Get instant answers from Tetr's official knowledge base</p>
   </div>
 
-  <!-- Navigation Bar -->
-  <div class="navbar">
-    <div class="logo-area">
-      <div class="logo-icon">T</div>
-      <div class="logo-text">
-        <h1>TETR Knowledge Base</h1>
-        <p>AI-Powered Information Quality Evaluator</p>
-      </div>
+  <div class="chat-container">
+    <div class="chat-header"><h3>💬 Ask Tetr Assistant</h3></div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="message bot-message"><strong>👋 Welcome!</strong><br><br>Ask about programs, founder, admissions, or Tetr Tribe.</div>
     </div>
-    <div class="nav-links">
-      <a href="#" class="nav-link" onclick="resetChat(); return false;">New Chat</a>
+    <div class="input-area">
+      <input type="text" id="questionInput" placeholder="Type your question..." onkeypress="if(event.keyCode===13) askQuestion()">
+      <button onclick="askQuestion()">Send</button>
     </div>
   </div>
+  <div class="footer">© 2025 TETR College of Business</div>
+</div>
 
-  <div class="main-container">
-    <!-- Hero Section -->
-    <div class="hero">
-      <div class="hero-badge">⚡ AI-Powered Semantic Search</div>
-      <h2>Ask me anything about Tetr</h2>
-      <p>From programs and partnerships to admissions and student life — get instant answers from Tetr's official knowledge base.</p>
-    </div>
+<script>
+// ============================================================
+// CONFIGURATION - EDIT THIS URL
+// ============================================================
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_PUBLISHED_ID/pub?output=csv";
+// Replace YOUR_PUBLISHED_ID with your actual Google Sheet CSV export ID
 
-    <!-- Two Column Layout -->
-    <div class="two-columns">
-      <!-- Chat Panel -->
-      <div class="chat-panel">
-        <div class="chat-header">
-          <h3>💬 Ask Tetr Assistant</h3>
-          <p>Ask about programs, admissions, curriculum, partnerships, or student life</p>
-        </div>
-        <div class="chat-messages" id="chatMessages">
-          <div class="message bot-message">
-            <strong>👋 Welcome to Tetr Knowledge Base!</strong><br><br>
-            I'm here to help you find information about Tetr College of Business. Try asking:<br><br>
-            • "What programs does Tetr offer?"<br>
-            • "What are the pillars of Tetr?"<br>
-            • "Who is the founder of Tetr?"<br>
-            • "What is the Tetr Tribe?"<br>
-            • "What awards has Tetr won?"
-          </div>
-        </div>
-        <div class="input-area">
-          <input type="text" id="questionInput" placeholder="Type your question here..." onkeypress="if(event.keyCode===13) askQuestion()">
-          <button onclick="askQuestion()">Send</button>
-        </div>
-      </div>
+// ============================================================
+// GLOBAL VARIABLES
+// ============================================================
+let extractor = null;        // All-MiniLM-L6-v2 for embeddings
+let qaModel = null;          // DistilBERT for answer extraction
+let knowledgeBase = [];
+let articleEmbeddings = null;
+let modelsLoaded = false;
+let isModelDownloading = false;
 
-      <!-- Stats Panel -->
-      <div class="stats-panel">
-        <div class="stats-header">
-          <h3>📊 Knowledge Base Stats</h3>
-        </div>
-        <div class="stats-content">
-          <div class="stat-card">
-            <div class="stat-number" id="docCount">0</div>
-            <div class="stat-label">Knowledge Articles</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number" id="categoryCount">0</div>
-            <div class="stat-label">Categories</div>
-          </div>
-          <div class="category-list" id="categoryList">
-            <!-- Categories will be loaded here -->
-          </div>
-          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eef2f6;">
-            <div style="font-size: 12px; color: #5a6a7a; text-align: center;">
-              🧠 <strong>Transformers.js (Quantized)</strong><br>
-              All-MiniLM-L6-v2 (23 MB) + DistilBERT
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+// ============================================================
+// PROGRESS UI
+// ============================================================
+function updateProgress(percent, message, status) {
+  const progressBar = document.getElementById('progressBar');
+  const loadingMsg = document.getElementById('loadingMessage');
+  const statusText = document.getElementById('loadingStatus');
+  if (progressBar) progressBar.style.width = percent + '%';
+  if (loadingMsg) loadingMsg.innerText = message || 'Loading...';
+  if (statusText) statusText.innerText = status || '';
+}
 
-    <div class="footer">
-      © 2025 TETR College of Business — Information Quality Evaluator
-    </div>
-  </div>
-
-  <script>
-    // Global variables for Transformers.js models
-    let extractor = null;      // All-MiniLM-L6-v2 (23 MB quantized) for semantic search
-    let qaModel = null;        // DistilBERT (67 MB) for answer extraction
-    let knowledgeBase = [];
-    let articleTexts = [];
-    let articleEmbeddings = null;
-    let categories = new Set();
-    let modelsLoaded = false;
-
-    // Progress tracking
-    function updateProgress(percent, status) {
-      const progressBar = document.getElementById('progressBar');
-      const statusText = document.getElementById('loadingStatus');
-      if (progressBar) progressBar.style.width = percent + '%';
-      if (statusText) statusText.innerText = status;
+// ============================================================
+// LOAD AI MODELS (Cached automatically by browser)
+// ============================================================
+async function loadAIModels() {
+  if (extractor && qaModel) return;
+  if (isModelDownloading) return;
+  
+  isModelDownloading = true;
+  
+  try {
+    updateProgress(10, 'Loading Transformers.js...', 'Initializing');
+    
+    // Check if pipeline exists
+    if (typeof pipeline === 'undefined') {
+      throw new Error('Transformers.js not loaded. Check your internet connection.');
     }
+    
+    updateProgress(20, 'Downloading AI model (23 MB)...', 'This happens once per browser');
+    
+    // Load All-MiniLM-L6-v2 (23 MB quantized)
+    extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+      progress_callback: (progress) => {
+        if (progress.status === 'downloading') {
+          const percent = 20 + (progress.progress || 0) * 30;
+          updateProgress(percent, 'Downloading AI model...', `${Math.round(progress.progress * 100)}%`);
+        }
+      }
+    });
+    
+    updateProgress(50, 'Downloading Q&A model (67 MB)...', 'One-time download');
+    
+    // Load DistilBERT for question answering
+    qaModel = await pipeline('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad', {
+      progress_callback: (progress) => {
+        if (progress.status === 'downloading') {
+          const percent = 50 + (progress.progress || 0) * 30;
+          updateProgress(percent, 'Downloading Q&A model...', `${Math.round(progress.progress * 100)}%`);
+        }
+      }
+    });
+    
+    updateProgress(80, 'AI models ready!', 'Loading knowledge base...');
+    
+  } catch(error) {
+    console.error('Model loading error:', error);
+    updateProgress(100, 'Error loading AI', error.message);
+    throw error;
+  } finally {
+    isModelDownloading = false;
+  }
+}
 
-    // Load Transformers.js models (23 MB All-MiniLM-L6-v2 + DistilBERT)
-    async function loadModels() {
-      try {
-        updateProgress(5, 'Loading Transformers.js...');
-        
-        updateProgress(15, 'Downloading All-MiniLM-L6-v2 (23 MB)...');
-        
-        // Load the quantized 23 MB All-MiniLM-L6-v2 for semantic search
-        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-        
-        updateProgress(50, 'Downloading DistilBERT (67 MB)...');
-        
-        // Load DistilBERT for question answering
-        qaModel = await pipeline('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad');
-        
-        updateProgress(70, 'Loading knowledge base...');
-        
-        // Load knowledge base from Google Sheet
-        await loadKnowledgeBase();
-        
-        updateProgress(85, 'Creating semantic index...');
-        
-        // Pre-compute embeddings for all articles
-        await precomputeEmbeddings();
-        
-        updateProgress(100, 'Ready!');
-        
-        setTimeout(() => {
-          document.getElementById('loadingOverlay').style.display = 'none';
-          modelsLoaded = true;
-          
-          addMessage("✅ AI models loaded! I can now understand natural language questions and find exact answers from Tetr's knowledge base.", false);
-        }, 500);
-        
-      } catch(error) {
-        console.error('Model loading error:', error);
-        updateProgress(100, 'Error loading models. Please refresh.');
-        document.getElementById('loadingStatus').style.color = '#e74c3c';
+// ============================================================
+// LOAD KNOWLEDGE BASE FROM CSV (Fresh every session)
+// ============================================================
+async function loadKnowledgeBase() {
+  try {
+    updateProgress(82, 'Fetching latest data...', 'Downloading knowledge base');
+    
+    const response = await fetch(CSV_URL);
+    if (!response.ok) throw new Error('Failed to fetch CSV');
+    
+    const csvText = await response.text();
+    
+    // Parse CSV
+    const lines = csvText.split('\n');
+    const headers = lines[0].split(',');
+    
+    knowledgeBase = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      
+      // Simple CSV parse (handles quoted fields)
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let j = 0; j < lines[i].length; j++) {
+        const char = lines[i][j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+      
+      if (values.length >= 5 && values[0]) {
+        knowledgeBase.push({
+          id: values[0],
+          heading: values[1],
+          content: values[2],
+          keywords: values[3],
+          category: values[4]
+        });
       }
     }
-
-    // Load data from Google Sheet via Apps Script
-    function loadKnowledgeBase() {
-      return new Promise((resolve, reject) => {
-        google.script.run.withSuccessHandler(function(data) {
-          knowledgeBase = data;
-          updateStats();
-          
-          // Prepare article texts for embedding
-          articleTexts = knowledgeBase.map(article => 
-            `${article.heading}\n${article.content}\n${article.keywords}`
-          );
-          resolve();
-        }).withFailureHandler(reject).getKnowledgeBase();
-      });
-    }
-
-    // Pre-compute embeddings for all articles using 23 MB All-MiniLM-L6-v2
-    async function precomputeEmbeddings() {
-      if (!extractor || articleTexts.length === 0) return;
-      
-      const allEmbeddings = [];
+    
+    updateProgress(90, 'Creating semantic index...', `${knowledgeBase.length} articles loaded`);
+    
+    // Pre-compute embeddings for all articles
+    if (extractor && knowledgeBase.length > 0) {
+      const articleTexts = knowledgeBase.map(a => `${a.heading}\n${a.content}\n${a.keywords}`);
+      const embeddings = [];
       
       for (let i = 0; i < articleTexts.length; i++) {
-        // Process one at a time to avoid memory issues
-        const embedding = await extractor(articleTexts[i], { pooling: 'mean', normalize: true });
-        allEmbeddings.push(Array.from(embedding.data));
-        
-        const percent = 85 + Math.floor((i + 1) / articleTexts.length * 15);
-        updateProgress(percent, `Indexing articles (${i + 1}/${articleTexts.length})...`);
+        const emb = await extractor(articleTexts[i], { pooling: 'mean', normalize: true });
+        embeddings.push(Array.from(emb.data));
+        const percent = 90 + Math.floor((i + 1) / articleTexts.length * 10);
+        updateProgress(percent, 'Indexing...', `${i + 1}/${articleTexts.length} articles`);
       }
       
-      articleEmbeddings = allEmbeddings;
+      articleEmbeddings = embeddings;
     }
+    
+    updateProgress(100, 'Ready!', 'You can now ask questions');
+    
+    setTimeout(() => {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      modelsLoaded = true;
+      addMessage("✅ Ready! Ask me anything about Tetr.", false);
+    }, 500);
+    
+  } catch(error) {
+    console.error('CSV loading error:', error);
+    updateProgress(100, 'Error loading data', 'Using sample data');
+    
+    // Fallback sample data
+    knowledgeBase = [
+      { heading: "Tetr College of Business", content: "A new-age business school where students build businesses across 7 countries.", keywords: "tetr college business global", category: "about" },
+      { heading: "Founder", content: "Pratham Mittal, alumnus of Wharton and The Doon School.", keywords: "pratham mittal founder wharton", category: "about" }
+    ];
+    
+    setTimeout(() => {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      modelsLoaded = true;
+      addMessage("✅ Ready! (Using sample data - CSV failed to load)", false);
+    }, 1000);
+  }
+}
 
-    function updateStats() {
-      document.getElementById('docCount').innerText = knowledgeBase.length;
-      
-      const categoryMap = new Map();
-      knowledgeBase.forEach(item => {
-        if (item.category) {
-          categoryMap.set(item.category.toLowerCase(), item.category);
-        }
-      });
-      const uniqueCategories = Array.from(categoryMap.values());
-      document.getElementById('categoryCount').innerText = uniqueCategories.length;
-      
-      const categoryContainer = document.getElementById('categoryList');
-      categoryContainer.innerHTML = uniqueCategories.map(cat => 
-        `<span class="category-tag">${cat}</span>`
-      ).join('');
+// ============================================================
+// SEMANTIC SEARCH
+// ============================================================
+function cosineSimilarity(vecA, vecB) {
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dot += vecA[i] * vecB[i];
+    magA += vecA[i] * vecA[i];
+    magB += vecB[i] * vecB[i];
+  }
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+async function semanticSearch(question) {
+  if (!extractor || !articleEmbeddings || knowledgeBase.length === 0) return [];
+  
+  const qEmb = await extractor(question, { pooling: 'mean', normalize: true });
+  const qEmbArray = Array.from(qEmb.data);
+  
+  const scores = [];
+  for (let i = 0; i < articleEmbeddings.length; i++) {
+    scores.push({ index: i, score: cosineSimilarity(qEmbArray, articleEmbeddings[i]) });
+  }
+  
+  scores.sort((a, b) => b.score - a.score);
+  return scores.slice(0, 3).filter(s => s.score > 0.2).map(s => knowledgeBase[s.index]);
+}
+
+async function extractAnswer(question, context) {
+  if (!qaModel) return null;
+  try {
+    return await qaModel({ question, context: context.substring(0, 2000) });
+  } catch(e) {
+    return null;
+  }
+}
+
+// ============================================================
+// CHAT UI
+// ============================================================
+function addMessage(text, isUser) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+  div.innerHTML = text.replace(/\n/g, '<br>');
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('chatMessages');
+  const typing = document.createElement('div');
+  typing.className = 'typing-indicator';
+  typing.id = 'typingIndicator';
+  typing.innerHTML = '<span></span><span></span><span></span>';
+  container.appendChild(typing);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function resetChat() {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '<div class="message bot-message"><strong>👋 Welcome!</strong><br><br>Ask about programs, founder, admissions, or Tetr Tribe.</div>';
+}
+
+async function askQuestion() {
+  const question = document.getElementById('questionInput').value.trim();
+  if (!question) return;
+  
+  addMessage(question, true);
+  document.getElementById('questionInput').value = '';
+  showTyping();
+  
+  if (!modelsLoaded || !extractor) {
+    removeTyping();
+    addMessage("AI models are still loading. Please wait...", false);
+    return;
+  }
+  
+  try {
+    const relevant = await semanticSearch(question);
+    
+    if (!relevant || relevant.length === 0) {
+      removeTyping();
+      addMessage("I couldn't find information about that. Try asking about programs, founder, or Tetr Tribe.", false);
+      return;
     }
-
-    // Cosine similarity for semantic search
-    function cosineSimilarity(vecA, vecB) {
-      let dot = 0, magA = 0, magB = 0;
-      for (let i = 0; i < vecA.length; i++) {
-        dot += vecA[i] * vecB[i];
-        magA += vecA[i] * vecA[i];
-        magB += vecB[i] * vecB[i];
-      }
-      return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+    
+    let context = relevant.map(r => `[${r.heading}]\n${r.content}`).join('\n\n');
+    const answer = await extractAnswer(question, context);
+    
+    removeTyping();
+    
+    let response = `<strong>📌 ${relevant[0].heading}</strong><br><br>`;
+    if (answer && answer.answer && answer.score > 0.2) {
+      response += `${answer.answer}<br><br>`;
+      response += `<span style="font-size: 11px; color: #009C50;">✓ Confidence: ${Math.round(answer.score * 100)}%</span>`;
+    } else {
+      response += relevant[0].content.substring(0, 500);
     }
+    
+    addMessage(response, false);
+    
+  } catch(err) {
+    console.error(err);
+    removeTyping();
+    addMessage("Sorry, I encountered an error. Please try again.", false);
+  }
+}
 
-    // Semantic search using 23 MB All-MiniLM-L6-v2 embeddings
-    async function semanticSearch(question) {
-      if (!extractor || !articleEmbeddings) {
-        return [];
-      }
-      
-      // Get embedding for the user's question
-      const questionEmbeddingTensor = await extractor(question, { pooling: 'mean', normalize: true });
-      const qEmb = Array.from(questionEmbeddingTensor.data);
-      
-      // Calculate similarity scores
-      const scores = [];
-      for (let i = 0; i < articleEmbeddings.length; i++) {
-        const score = cosineSimilarity(qEmb, articleEmbeddings[i]);
-        scores.push({ index: i, score: score });
-      }
-      
-      // Sort by score (higher = more relevant)
-      scores.sort((a, b) => b.score - a.score);
-      
-      // Return top 3 results with relevance threshold
-      return scores.filter(s => s.score > 0.25).slice(0, 3).map(s => ({
-        ...knowledgeBase[s.index],
-        relevance: s.score
-      }));
-    }
+// ============================================================
+// INITIALIZATION
+// ============================================================
+async function init() {
+  await loadAIModels();
+  await loadKnowledgeBase();
+}
 
-    // Extract exact answer using DistilBERT
-    async function extractAnswer(question, context) {
-      if (!qaModel) return null;
-      
-      try {
-        const result = await qaModel({
-          question: question,
-          context: context
-        });
-        return result;
-      } catch(e) {
-        console.error('QA error:', e);
-        return null;
-      }
-    }
-
-    // Main ask function
-    async function askQuestion() {
-      const question = document.getElementById('questionInput').value.trim();
-      if (!question) return;
-      
-      addMessage(question, true);
-      document.getElementById('questionInput').value = '';
-      showTyping();
-      
-      if (!modelsLoaded) {
-        removeTyping();
-        addMessage("AI models are still loading. Please wait a moment and try again.", false);
-        return;
-      }
-      
-      try {
-        // Stage 1: Semantic search to find relevant articles
-        const relevantArticles = await semanticSearch(question);
-        
-        if (relevantArticles.length === 0) {
-          removeTyping();
-          addMessage("I couldn't find specific information about that. Please try rephrasing your question.", false);
-          return;
-        }
-        
-        // Build context from top articles (limit to ~2000 chars for DistilBERT)
-        let context = "";
-        for (let i = 0; i < Math.min(relevantArticles.length, 3); i++) {
-          context += `[${relevantArticles[i].heading}]\n${relevantArticles[i].content}\n\n`;
-        }
-        if (context.length > 2000) {
-          context = context.substring(0, 2000);
-        }
-        
-        // Stage 2: Extract exact answer using DistilBERT
-        const answer = await extractAnswer(question, context);
-        
-        removeTyping();
-        
-        // Format the response
-        let response = `<strong>📌 ${relevantArticles[0].heading}</strong><br><br>`;
-        
-        if (answer && answer.answer && answer.score > 0.2) {
-          // AI found a specific answer
-          response += `${answer.answer}<br><br>`;
-          response += `<span class="confidence-badge">✓ Confidence: ${Math.round(answer.score * 100)}%</span>`;
-        } else {
-          // Fallback to the article content
-          response += relevantArticles[0].content.substring(0, 600);
-          if (relevantArticles[0].content.length > 600) response += '...';
-        }
-        
-        // Show related topics
-        if (relevantArticles.length > 1) {
-          response += `<br><br><hr><strong>🔗 Also relevant:</strong><br>`;
-          for (let i = 1; i < Math.min(relevantArticles.length, 3); i++) {
-            response += `• <strong>${relevantArticles[i].heading}</strong><br>`;
-          }
-        }
-        
-        response += `<br><span style="font-size: 11px; color: #009C50;">🧠 Transformers.js (23 MB quantized All-MiniLM + DistilBERT)</span>`;
-        
-        addMessage(response, false);
-        
-      } catch(error) {
-        console.error('Error:', error);
-        removeTyping();
-        addMessage("Sorry, I encountered an error. Please try again.", false);
-      }
-    }
-
-    function addMessage(text, isUser) {
-      const chatMessages = document.getElementById('chatMessages');
-      const messageDiv = document.createElement('div');
-      messageDiv.className = isUser ? 'message user-message' : 'message bot-message';
-      messageDiv.innerHTML = text.replace(/\n/g, '<br>');
-      chatMessages.appendChild(messageDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function showTyping() {
-      const chatMessages = document.getElementById('chatMessages');
-      const typingDiv = document.createElement('div');
-      typingDiv.className = 'typing-indicator';
-      typingDiv.id = 'typingIndicator';
-      typingDiv.innerHTML = '<span></span><span></span><span></span>';
-      chatMessages.appendChild(typingDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    function removeTyping() {
-      const indicator = document.getElementById('typingIndicator');
-      if (indicator) indicator.remove();
-    }
-
-    function resetChat() {
-      const chatMessages = document.getElementById('chatMessages');
-      chatMessages.innerHTML = `
-        <div class="message bot-message">
-          <strong>👋 Welcome to Tetr Knowledge Base!</strong><br><br>
-          I'm here to help you find information about Tetr College of Business. Try asking:<br><br>
-          • "What programs does Tetr offer?"<br>
-          • "What are the pillars of Tetr?"<br>
-          • "Who is the founder of Tetr?"<br>
-          • "What is the Tetr Tribe?"<br>
-          • "What awards has Tetr won?"
-        </div>
-      `;
-    }
-
-    // Initialize when page loads
-    window.onload = function() {
-      loadModels();
-    };
-  </script>
+window.onload = init;
+</script>
 </body>
 </html>
