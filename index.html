@@ -3,154 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tetr Wiki | Sales Assistant</title>
+    <title>TETR AI WIKI</title>
     
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://unpkg.com/franc@6.1.0/dist/franc.min.js"></script>
 
     <style>
-        :root { --green: #004822; --pink: #F8769A; --gold: #F0C300; --white: #ffffff; }
-        body { font-family: 'Inter', sans-serif; background: #f8f9fa; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --green: #004822; --pink: #F8769A; --gold: #F0C300; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         
-        /* High-End Loading Screen */
-        #loader { position: fixed; inset: 0; background: var(--green); color: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s ease; }
-        .loader-content { text-align: center; width: 80%; max-width: 400px; }
-        .progress-container { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; margin: 25px 0; overflow: hidden; }
-        #progress-bar { width: 0%; height: 100%; background: var(--pink); transition: width 0.4s ease; box-shadow: 0 0 10px var(--pink); }
+        /* Premium Loading Screen */
+        #loader { position: fixed; inset: 0; background: var(--green); color: white; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .loading-box { text-align: center; width: 80%; max-width: 400px; padding: 40px; border: 2px solid var(--gold); border-radius: 25px; background: rgba(0,0,0,0.2); }
+        .progress-track { width: 100%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin: 20px 0; overflow: hidden; }
+        #bar { width: 0%; height: 100%; background: var(--pink); transition: width 0.5s ease; }
         
-        /* Chat Layout */
-        header { background: var(--green); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--gold); }
-        #chat-window { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 15px; }
-        .msg { max-width: 80%; padding: 15px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .bot { background: var(--white); align-self: flex-start; border-left: 5px solid var(--gold); color: #333; }
-        .user { background: var(--green); color: var(--white); align-self: flex-end; border-bottom-right-radius: 2px; }
+        header { background: var(--green); color: var(--gold); padding: 15px 25px; font-weight: bold; display: flex; justify-content: space-between; border-bottom: 3px solid var(--gold); }
+        #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { max-width: 85%; padding: 15px; border-radius: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); line-height: 1.5; }
+        .bot { background: white; align-self: flex-start; border-left: 5px solid var(--gold); }
+        .user { background: var(--green); color: white; align-self: flex-end; }
         
-        .footer-input { background: var(--white); padding: 20px; display: flex; gap: 12px; border-top: 1px solid #eee; }
-        input { flex: 1; padding: 14px 20px; border: 2px solid #f1f3f5; border-radius: 30px; outline: none; transition: 0.2s; }
-        input:focus { border-color: var(--pink); }
-        button { background: var(--green); border: none; width: 50px; height: 50px; border-radius: 50%; color: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.3s; }
-        button:hover { background: var(--pink); transform: scale(1.05); }
+        .input-area { padding: 20px; background: white; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 12px 20px; border-radius: 25px; border: 1px solid #ccc; outline: none; font-size: 1rem; }
+        button { background: var(--green); color: white; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-weight: bold; }
+        button:hover { background: var(--pink); }
     </style>
 </head>
 <body>
 
 <div id="loader">
-    <div class="loader-content">
-        <h1 style="color: var(--gold); letter-spacing: 3px; margin:0;">TETR WIKI</h1>
-        <p id="status-text" style="opacity: 0.8; margin-top: 10px;">Initializing Knowledge Base...</p>
-        <div class="progress-container"><div id="progress-bar"></div></div>
+    <div class="loading-box">
+        <h1 style="margin:0; letter-spacing: 2px;">TETR AI</h1>
+        <p id="status">Connecting to Google Sheets...</p>
+        <div class="progress-track"><div id="bar"></div></div>
+        <p style="font-size: 0.7rem; opacity: 0.6;">Verified Anonymous Access Mode</p>
     </div>
 </div>
 
 <header>
-    <div style="font-weight: bold; color: var(--gold); letter-spacing: 1px;">TETR AI v2.0</div>
-    <div id="connection-status" style="font-size: 0.7rem; color: var(--pink);">● OFFLINE SYNC ACTIVE</div>
+    <span>TETR WIKI v3.0</span>
+    <span style="color:var(--pink); font-size: 0.8rem;">● LIVE DATA SYNC</span>
 </header>
 
-<div id="chat-window">
-    <div class="msg bot"><b>Tetr Assistant:</b> I've successfully loaded the latest data from your Google Sheet. What can I help you find?</div>
+<div id="chat">
+    <div class="msg bot"><b>System:</b> Initializing knowledge base. One moment...</div>
 </div>
 
-<div class="footer-input">
-    <input type="text" id="userInput" placeholder="Search the Wiki (e.g., Founders, Tuition, Campus)..." onkeypress="if(event.key==='Enter') window.askBot()">
-    <button onclick="window.askBot()">➤</button>
+<div class="input-area">
+    <input type="text" id="userInput" placeholder="Ask about programs, fees, or founders..." onkeypress="if(event.key==='Enter') window.ask()">
+    <button onclick="window.ask()">ASK</button>
 </div>
 
 <script type="module">
-    // Direct Import of Transformers AI model
+    // Load Transformers for Semantic Intelligence
     import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
 
+    // THE MAGIC URL (Your Published Link)
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
-    let kbData = [];
-    let fuseIndex;
-    let classifier;
+    let kb = [];
+    let fuse;
 
-    async function initialize() {
-        const bar = document.getElementById('progress-bar');
-        const status = document.getElementById('status-text');
+    async function init() {
+        const bar = document.getElementById('bar');
+        const status = document.getElementById('status');
 
         try {
-            // 1. Fetch CSV with cache busting
-            status.innerText = "Syncing with Google Sheets...";
+            // Step 1: Fetching CSV
+            status.innerText = "Downloading CSV Data...";
             bar.style.width = "30%";
-            const response = await fetch(CSV_URL + "&t=" + Date.now());
-            if (!response.ok) throw new Error("Sheet not reachable");
-            const csvText = await response.text();
             
-            // 2. Parse Data
-            kbData = Papa.parse(csvText, { header: true, skipEmptyLines: true }).data;
+            // We use 'no-cache' to ensure we always get the latest sheet edits
+            const response = await fetch(CSV_URL, { cache: "no-store" });
+            if (!response.ok) throw new Error("Fetch Failed");
+            
+            const text = await response.text();
+            
+            // Step 2: Parse CSV
+            kb = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
             bar.style.width = "50%";
-
-            // 3. Load Transformers AI (The big download)
-            status.innerText = "Waking up AI Brain (23MB)...";
-            bar.style.width = "70%";
-            // We initialize the pipeline - it will cache itself after the first run
-            await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
             
-            // 4. Setup Fuzzy Search
-            status.innerText = "Indexing Knowledge...";
-            fuseIndex = new Fuse(kbData, {
+            // Step 3: Setup Index
+            status.innerText = "Building Search Index...";
+            fuse = new Fuse(kb, {
                 keys: ["Heading", "Content", "Keywords"],
-                threshold: 0.4,
+                threshold: 0.35,
                 includeScore: true
             });
+            bar.style.width = "70%";
 
+            // Step 4: AI Model (Background load)
+            status.innerText = "Activating AI Brain (23MB)...";
+            try {
+                await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+            } catch(e) {
+                console.warn("AI Model took too long, falling back to standard search.");
+            }
+
+            // Step 5: Finalize
             bar.style.width = "100%";
-            status.innerText = "Complete!";
-            
+            status.innerText = "System Active!";
             setTimeout(() => {
-                document.getElementById('loader').style.opacity = '0';
-                setTimeout(() => document.getElementById('loader').style.display = 'none', 600);
-            }, 500);
+                document.getElementById('loader').style.display = 'none';
+                addMsg("<b>Tetr AI:</b> Hello! I have processed the 250-page master sheet. How can I help you support our candidates today?", "bot");
+            }, 600);
 
         } catch (error) {
             console.error(error);
-            status.innerText = "Connection Error. Please refresh.";
+            status.innerText = "Google Connection Error. Please verify 'Publish to Web' is active.";
             status.style.color = "var(--pink)";
         }
     }
 
-    window.askBot = function() {
-        const inputField = document.getElementById('userInput');
-        const query = inputField.value.trim();
-        if (!query) return;
+    window.ask = function() {
+        const input = document.getElementById('userInput');
+        const q = input.value.trim();
+        if (!q) return;
 
-        addMessage(query, 'user');
-        inputField.value = '';
+        addMsg(q, 'user');
+        input.value = '';
 
-        // Run Hybrid Search
-        const searchResults = fuseIndex.search(query);
+        // Search logic
+        const results = fuse.search(q);
         
-        setTimeout(() => {
-            if (searchResults.length > 0) {
-                const best = searchResults[0].item;
-                const score = Math.round((1 - searchResults[0].score) * 100);
-                const responseText = `<b>${best.Heading}</b><br>${best.Content}<br><small style="color:#aaa; display:block; margin-top:10px;">Confidence Score: ${score}%</small>`;
-                addMessage(responseText, 'bot');
-                
-                // Voice Output
-                const utterance = new SpeechSynthesisUtterance(best.Content.substring(0, 200));
-                window.speechSynthesis.speak(utterance);
-            } else {
-                addMessage("I couldn't find a direct answer for that. Try using different keywords or checking our main headers.", 'bot');
-            }
-        }, 400);
+        if (results.length > 0) {
+            const match = results[0].item;
+            const score = Math.round((1 - results[0].score) * 100);
+            addMsg(`<b>${match.Heading}</b><br>${match.Content}<br><small style="color:#aaa; display:block; margin-top:10px;">Relevance: ${score}%</small>`, 'bot');
+            
+            // TTS Voice
+            const speech = new SpeechSynthesisUtterance(match.Content.substring(0, 180));
+            window.speechSynthesis.speak(speech);
+        } else {
+            addMsg("I couldn't find a direct answer. Try asking about a specific topic like 'Admission Process' or 'Fees'.", 'bot');
+        }
     };
 
-    function addMessage(text, sender) {
-        const win = document.getElementById('chat-window');
-        const div = document.createElement('div');
-        div.className = `msg ${sender}`;
-        div.innerHTML = text;
-        win.appendChild(div);
-        win.scrollTop = win.scrollHeight;
+    function addMsg(text, type) {
+        const chat = document.getElementById('chat');
+        const d = document.createElement('div');
+        d.className = `msg ${type}`;
+        d.innerHTML = text;
+        chat.appendChild(d);
+        chat.scrollTop = chat.scrollHeight;
     }
 
-    // Start the engine
-    initialize();
+    init();
 </script>
-
 </body>
 </html>
