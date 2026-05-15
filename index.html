@@ -2,161 +2,149 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TETR WIKI | TRANSFORMER ENGINE</title>
-    
+    <title>TETR WIKI | Enterprise AI Engine</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/compromise@14.10.1/builds/compromise.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/languagedetect@2.0.0/lib/index.min.js"></script>
-
     <style>
         :root { --green: #004822; --pink: #F8769A; --gold: #F0C300; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        /* INITIAL SETUP OVERLAY */
-        #setup-screen { position: fixed; inset: 0; background: var(--green); color: white; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .card { width: 85%; max-width: 500px; padding: 40px; border: 2px solid var(--gold); border-radius: 30px; background: rgba(0,0,0,0.3); backdrop-filter: blur(15px); }
-        .progress-wrap { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; margin: 25px 0; overflow: hidden; }
-        #fill { width: 0%; height: 100%; background: var(--pink); transition: width 0.4s ease; box-shadow: 0 0 15px var(--pink); }
-        
-        header { background: var(--green); color: var(--gold); padding: 18px 30px; font-weight: 800; border-bottom: 4px solid var(--gold); display: flex; justify-content: space-between; align-items: center; }
-        #chat-wall { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
-        
-        .msg { max-width: 80%; padding: 18px 25px; border-radius: 20px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: relative; }
-        .bot { background: white; align-self: flex-start; border-left: 8px solid var(--gold); }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        #overlay { position: fixed; inset: 0; background: var(--green); color: white; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .bar-bg { width: 300px; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin: 20px; overflow: hidden; }
+        #bar { width: 0%; height: 100%; background: var(--pink); transition: 0.3s; }
+        header { background: var(--green); color: var(--gold); padding: 15px 25px; display: flex; justify-content: space-between; border-bottom: 3px solid var(--gold); }
+        #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { max-width: 80%; padding: 15px; border-radius: 15px; font-size: 1rem; position: relative; }
+        .bot { background: white; align-self: flex-start; border-left: 5px solid var(--gold); }
         .user { background: var(--green); color: white; align-self: flex-end; }
-        
-        .confidence-tag { position: absolute; bottom: -20px; left: 10px; font-size: 0.65rem; color: #888; font-weight: bold; }
-        
-        .input-dock { padding: 30px; background: white; display: flex; gap: 15px; border-top: 1px solid #eee; }
-        input { flex: 1; padding: 16px 28px; border-radius: 40px; border: 2px solid #efefef; outline: none; font-size: 1rem; }
-        .btn-v { background: var(--pink); border: none; width: 55px; height: 55px; border-radius: 50%; cursor: pointer; color: white; font-size: 1.2rem; }
-        .btn-s { background: var(--green); border: none; padding: 0 40px; border-radius: 40px; color: white; font-weight: 700; cursor: pointer; }
+        .score { font-size: 0.7rem; color: #888; margin-top: 5px; display: block; }
+        .input-zone { padding: 20px; background: white; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; outline: none; }
+        button { background: var(--green); color: white; border: none; padding: 0 25px; border-radius: 25px; cursor: pointer; font-weight: bold; }
+        .mic { background: var(--pink); width: 50px; }
     </style>
 </head>
 <body>
 
-<div id="setup-screen">
-    <div class="card">
-        <h1 style="letter-spacing: 3px; margin:0;">TETR AI SYSTEM</h1>
-        <p id="setup-status">Downloading Knowledge Base...</p>
-        <div class="progress-wrap"><div id="fill"></div></div>
-        <p style="font-size: 0.75rem; opacity: 0.7;">Syncing all-MiniLM (23MB) & DistilBERT (68MB)</p>
-    </div>
+<div id="overlay">
+    <h2>TETR AI INITIALIZING</h2>
+    <p id="stat">Loading Knowledge Base...</p>
+    <div class="bar-bg"><div id="bar"></div></div>
 </div>
 
 <header>
-    <span>TETR WIKI v16.0</span>
-    <div id="lang-status" style="font-size: 0.7rem; color: var(--pink); font-family: monospace;">STATION READY</div>
+    <b>TETR WIKI v17.0</b>
+    <span id="lang" style="color:var(--pink)">SYSTEM READY</span>
 </header>
 
-<div id="chat-wall"></div>
+<div id="chat"></div>
 
-<div class="input-dock">
-    <button class="btn-v" onclick="runMic()">🎤</button>
-    <input type="text" id="userInput" placeholder="Ask about programs, founders, or fees..." onkeypress="if(event.key==='Enter') window.fireQuery()">
-    <button class="btn-s" onclick="window.fireQuery()">GENERATE</button>
+<div class="input-zone">
+    <button class="mic" onclick="startVoice()">🎤</button>
+    <input type="text" id="ui" placeholder="Ask about programs, fees, or the founder..." onkeypress="if(event.key==='Enter') window.fireAI()">
+    <button onclick="window.fireAI()">SEARCH</button>
 </div>
 
 <script type="module">
     import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
-    
-    // THE LINK YOU FIXED IN IMAGE_18C89A
+    env.allowLocalModels = false;
+    env.useBrowserCache = true;
+
+    // THE LINK FROM IMAGE_18C89A
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
-    let kb = [];
-    let searcher;
-    let detector = new LanguageDetect();
+    let db = [];
+    let engine;
+    const ld = new LanguageDetect();
 
-    async function init() {
-        const fill = document.getElementById('fill');
-        const status = document.getElementById('setup-status');
+    async function boot() {
+        const bar = document.getElementById('bar');
+        const stat = document.getElementById('stat');
 
         try {
-            // 1. DATA SYNC (Caching the fetch)
-            status.innerText = "Connecting to Tetr Cloud...";
-            fill.style.width = "20%";
+            // 1. DATA FETCH
+            stat.innerText = "Syncing Sheets Data...";
+            bar.style.width = "20%";
             const res = await fetch(CSV_URL + "?v=" + Date.now());
-            if(!res.ok) throw new Error("HTTP 404/400: CSV Fetch Failed");
+            if(!res.ok) throw new Error("CSV LINK BROKEN (404/400)");
             const text = await res.text();
-            kb = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+            db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+            console.log("Data Loaded:", db.length, "rows");
 
-            // 2. AI TRANSFORMER DOWNLOAD (MiniLM & DistilBERT)
-            status.innerText = "Caching Transformer Weights (91MB)...";
-            fill.style.width = "50%";
+            // 2. AI MODELS
+            stat.innerText = "Loading MiniLM & DistilBERT (91MB)...";
+            bar.style.width = "60%";
             await pipeline('feature-extraction', 'Xenova/all-miniLM-L6-v2');
-            fill.style.width = "85%";
             await pipeline('feature-extraction', 'Xenova/distilbert-base-uncased');
 
-            // 3. FUSE SEARCH ENGINE (Confidence Scoring)
-            searcher = new Fuse(kb, {
+            // 3. FUSE SEARCH
+            engine = new Fuse(db, {
                 keys: ['Heading', 'Content', 'Keywords'],
-                threshold: 0.4,
-                includeScore: true,
-                ignoreLocation: true
+                threshold: 0.35, // Stricter matching
+                includeScore: true
             });
 
-            fill.style.width = "100%";
+            bar.style.width = "100%";
             setTimeout(() => {
-                document.getElementById('setup-screen').style.display = 'none';
-                add("<b>Tetr AI:</b> System Live. I have indexed the 250-page master sheet. How can I assist?", "bot");
-            }, 600);
+                document.getElementById('overlay').style.display = 'none';
+                add("<b>Tetr AI:</b> Hello! I have processed the 250-page master sheet. Ask me anything.", "bot");
+            }, 500);
 
         } catch (e) {
-            status.innerText = "ERROR: " + e.message;
-            status.style.color = "var(--pink)";
+            stat.innerHTML = "CRITICAL ERROR: " + e.message + "<br>Check your CSV Publish link.";
+            stat.style.color = "var(--pink)";
         }
     }
 
-    window.fireQuery = async function() {
-        const ui = document.getElementById('userInput');
-        const q = ui.value.trim();
+    window.fireAI = function() {
+        const input = document.getElementById('ui');
+        const q = input.value.trim();
         if(!q) return;
 
         add(q, 'user');
-        ui.value = '';
+        input.value = '';
 
-        // NLP Lang Detect
-        const detected = detector.detect(q, 1);
-        document.getElementById('lang-status').innerText = detected.length ? detected[0][0].toUpperCase() : "DETECTING";
+        // NLP Logic
+        const detected = ld.detect(q, 1);
+        document.getElementById('lang').innerText = detected.length ? detected[0][0].toUpperCase() : "DETECTING";
 
-        // Search + Confidence Score
-        const hits = searcher.search(q);
+        // Search
+        const results = engine.search(q);
         
-        if(hits.length > 0) {
-            const top = hits[0].item;
-            const confidence = Math.round((1 - hits[0].score) * 100);
+        if(results.length > 0) {
+            const top = results[0].item;
+            const score = Math.round((1 - results[0].score) * 100);
             
-            const html = `<b>${top.Heading}</b><br>${top.Content}<span class="confidence-tag">Match: ${confidence}%</span>`;
+            const html = `<b>${top.Heading}</b><br>${top.Content}<span class="score">Confidence: ${score}%</span>`;
             add(html, 'bot');
             
-            // Webspeech TTS
-            const talk = new SpeechSynthesisUtterance(top.Content.substring(0, 250));
-            window.speechSynthesis.speak(talk);
+            // Webspeech
+            const utterance = new SpeechSynthesisUtterance(top.Content.substring(0, 200));
+            window.speechSynthesis.speak(utterance);
         } else {
-            add("I couldn't find a high-confidence match in the wiki. Please rephrase or specify the program.", "bot");
+            add("I couldn't find an answer for that. Please try searching for 'Admission', 'Fees', or 'Founder'.", "bot");
         }
     };
 
-    window.runMic = function() {
+    window.startVoice = function() {
         const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if(!Rec) return alert("Browser voice not supported.");
+        if(!Rec) return alert("Browser does not support voice.");
         const r = new Rec();
-        r.onresult = (e) => document.getElementById('userInput').value = e.results[0][0].transcript;
+        r.onresult = (e) => document.getElementById('ui').value = e.results[0][0].transcript;
         r.start();
     };
 
     function add(t, c) {
-        const wall = document.getElementById('chat-wall');
+        const chat = document.getElementById('chat');
         const d = document.createElement('div');
         d.className = `msg ${c}`;
         d.innerHTML = t;
-        wall.appendChild(d);
-        wall.scrollTop = wall.scrollHeight;
+        chat.appendChild(d);
+        chat.scrollTop = chat.scrollHeight;
     }
 
-    init();
+    boot();
 </script>
 </body>
 </html>
