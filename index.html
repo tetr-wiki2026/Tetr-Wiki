@@ -1,326 +1,833 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TETR Knowledge Base</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TETR Knowledge Base | AI-Powered Assistant</title>
+  
+  <!-- Transformers.js - The only library you need -->
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.13.0/dist/transformers.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
-            min-height: 100vh;
-        }
+    body {
+      font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+      min-height: 100vh;
+    }
 
-        /* Header */
-        .navbar {
-            background: #004822;
-            padding: 16px 32px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
+    /* Header Navigation */
+    .navbar {
+      background: #004822;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: #009C50;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-        }
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #009C50;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: white;
+    }
 
-        .logo-text h1 {
-            color: white;
-            font-size: 20px;
-        }
+    .logo-text h1 {
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
 
-        .logo-text p {
-            color: rgba(255,255,255,0.7);
-            font-size: 12px;
-        }
+    .logo-text p {
+      color: rgba(255,255,255,0.7);
+      font-size: 11px;
+    }
 
-        /* Main Container */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 32px;
-        }
+    .nav-links {
+      display: flex;
+      gap: 24px;
+    }
 
-        /* Hero */
-        .hero {
-            background: white;
-            border-radius: 24px;
-            padding: 48px;
-            text-align: center;
-            margin-bottom: 32px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-        }
+    .nav-link {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 0;
+      border-bottom: 2px solid transparent;
+      transition: 0.2s;
+    }
 
-        .hero h1 {
-            font-size: 36px;
-            color: #004822;
-            margin-bottom: 12px;
-        }
+    .nav-link:hover {
+      border-bottom-color: #009C50;
+    }
 
-        .hero p {
-            color: #666;
-            font-size: 18px;
-        }
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #004822;
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
 
-        .badge {
-            background: #e8f5e9;
-            color: #009C50;
-            padding: 6px 14px;
-            border-radius: 40px;
-            font-size: 12px;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
+    .loading-card {
+      background: white;
+      padding: 40px;
+      border-radius: 24px;
+      text-align: center;
+      max-width: 400px;
+      margin: 20px;
+    }
 
-        /* Chat Box */
-        .chat-container {
-            background: white;
-            border-radius: 24px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            overflow: hidden;
-        }
+    .loading-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
 
-        .chat-header {
-            background: #004822;
-            padding: 20px 24px;
-            color: white;
-        }
+    .loading-card h3 {
+      color: #004822;
+      margin-bottom: 12px;
+    }
 
-        .chat-header h3 {
-            font-size: 18px;
-            margin-bottom: 4px;
-        }
+    .loading-card p {
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
 
-        .chat-messages {
-            height: 500px;
-            overflow-y: auto;
-            padding: 24px;
-            background: #fafbfc;
-        }
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
 
-        .message {
-            max-width: 80%;
-            padding: 12px 18px;
-            border-radius: 20px;
-            margin-bottom: 16px;
-            line-height: 1.5;
-        }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #009C50;
+      transition: width 0.3s;
+    }
 
-        .user-message {
-            background: #009C50;
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
-        }
+    .loading-status {
+      font-size: 12px;
+      color: #999;
+    }
 
-        .bot-message {
-            background: white;
-            border: 1px solid #e2e8f0;
-            color: #1a2a3a;
-            border-bottom-left-radius: 4px;
-        }
+    /* Main Container */
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px;
+    }
 
-        .input-area {
-            padding: 20px 24px;
-            border-top: 1px solid #eef2f6;
-            display: flex;
-            gap: 12px;
-        }
+    /* Welcome Hero */
+    .hero {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 24px;
+      padding: 48px;
+      margin-bottom: 40px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,156,80,0.15);
+      text-align: center;
+    }
 
-        .input-area input {
-            flex: 1;
-            padding: 14px 18px;
-            border: 1px solid #dce3e9;
-            border-radius: 48px;
-            font-size: 14px;
-            outline: none;
-        }
+    .hero h2 {
+      font-size: 32px;
+      color: #004822;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
 
-        .input-area input:focus {
-            border-color: #009C50;
-        }
+    .hero p {
+      color: #5a6a7a;
+      font-size: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
 
-        .input-area button {
-            background: #009C50;
-            border: none;
-            border-radius: 48px;
-            padding: 12px 28px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-        }
+    .hero-badge {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #009C50;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
 
-        .input-area button:hover {
-            background: #007a3e;
-        }
+    /* Two Column Layout */
+    .two-columns {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 32px;
+    }
 
-        .footer {
-            text-align: center;
-            padding: 32px;
-            color: #7a8a9a;
-            font-size: 12px;
-        }
-    </style>
+    /* Chat Panel */
+    .chat-panel {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      overflow: hidden;
+      border: 1px solid #eef2f6;
+      display: flex;
+      flex-direction: column;
+      height: 70vh;
+    }
+
+    .chat-header {
+      background: #004822;
+      padding: 20px 24px;
+      color: white;
+    }
+
+    .chat-header h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .chat-header p {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #fafbfc;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 18px;
+      border-radius: 20px;
+      line-height: 1.5;
+      font-size: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .user-message {
+      align-self: flex-end;
+      background: #009C50;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bot-message {
+      align-self: flex-start;
+      background: white;
+      color: #1a2a3a;
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .bot-message strong {
+      color: #004822;
+    }
+
+    .bot-message hr {
+      margin: 12px 0;
+      border: none;
+      border-top: 1px solid #eef2f6;
+    }
+
+    .confidence-badge {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #009C50;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .typing-indicator {
+      align-self: flex-start;
+      background: white;
+      padding: 12px 18px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      gap: 4px;
+    }
+
+    .typing-indicator span {
+      width: 8px;
+      height: 8px;
+      background: #009C50;
+      border-radius: 50%;
+      animation: blink 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-4px); }
+    }
+
+    .input-area {
+      padding: 20px 24px;
+      background: white;
+      border-top: 1px solid #eef2f6;
+      display: flex;
+      gap: 12px;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1px solid #dce3e9;
+      border-radius: 48px;
+      font-size: 14px;
+      outline: none;
+      transition: 0.2s;
+    }
+
+    .input-area input:focus {
+      border-color: #009C50;
+      box-shadow: 0 0 0 3px rgba(0,156,80,0.1);
+    }
+
+    .input-area button {
+      background: #009C50;
+      border: none;
+      border-radius: 48px;
+      padding: 12px 28px;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .input-area button:hover {
+      background: #007a3e;
+      transform: translateY(-1px);
+    }
+
+    .input-area button:active {
+      transform: translateY(0);
+    }
+
+    /* Stats Panel */
+    .stats-panel {
+      background: white;
+      border-radius: 24px;
+      border: 1px solid #eef2f6;
+      overflow: hidden;
+    }
+
+    .stats-header {
+      background: #004822;
+      padding: 20px 24px;
+      color: white;
+    }
+
+    .stats-header h3 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .stats-content {
+      padding: 24px;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 32px;
+      font-weight: 800;
+      color: #004822;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #5a6a7a;
+      margin-top: 4px;
+    }
+
+    .category-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .category-tag {
+      background: #e8f5e9;
+      color: #009C50;
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 32px;
+      color: #7a8a9a;
+      font-size: 12px;
+    }
+
+    /* Scrollbar */
+    .chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+      background: #eef2f6;
+      border-radius: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: #009C50;
+      border-radius: 10px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .two-columns {
+        grid-template-columns: 1fr;
+      }
+      .hero {
+        padding: 32px 24px;
+      }
+      .navbar {
+        padding: 12px 20px;
+      }
+      .main-container {
+        padding: 20px;
+      }
+    }
+  </style>
 </head>
 <body>
 
-<div class="navbar">
-    <div class="logo">
-        <div class="logo-icon">T</div>
-        <div class="logo-text">
-            <h1>TETR Knowledge Base</h1>
-            <p>Information Quality Evaluator</p>
-        </div>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loading-card">
+      <div class="loading-icon">🧠</div>
+      <h3>Loading Tetr AI Assistant</h3>
+      <p>First-time setup: Downloading AI models (~23 MB)...</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="loading-status" id="loadingStatus">Initializing...</div>
+      <p style="font-size: 11px; margin-top: 20px; color: #999;">This happens once. Future visits will be instant.</p>
     </div>
-</div>
+  </div>
 
-<div class="container">
+  <!-- Navigation Bar -->
+  <div class="navbar">
+    <div class="logo-area">
+      <div class="logo-icon">T</div>
+      <div class="logo-text">
+        <h1>TETR Knowledge Base</h1>
+        <p>AI-Powered Information Quality Evaluator</p>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a href="#" class="nav-link" onclick="resetChat(); return false;">New Chat</a>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <!-- Hero Section -->
     <div class="hero">
-        <div class="badge">⚡ AI-Powered Assistant</div>
-        <h1>Ask me anything about Tetr</h1>
-        <p>Programs, admissions, curriculum, partnerships, or student life</p>
+      <div class="hero-badge">⚡ AI-Powered Semantic Search</div>
+      <h2>Ask me anything about Tetr</h2>
+      <p>From programs and partnerships to admissions and student life — get instant answers from Tetr's official knowledge base.</p>
     </div>
 
-    <div class="chat-container">
+    <!-- Two Column Layout -->
+    <div class="two-columns">
+      <!-- Chat Panel -->
+      <div class="chat-panel">
         <div class="chat-header">
-            <h3>💬 Ask Tetr Assistant</h3>
+          <h3>💬 Ask Tetr Assistant</h3>
+          <p>Ask about programs, admissions, curriculum, partnerships, or student life</p>
         </div>
         <div class="chat-messages" id="chatMessages">
-            <div class="message bot-message">
-                <strong>👋 Welcome!</strong><br><br>
-                Try asking:<br>
-                • "What programs does Tetr offer?"<br>
-                • "Who is the founder of Tetr?"<br>
-                • "What are the pillars of Tetr?"
-            </div>
+          <div class="message bot-message">
+            <strong>👋 Welcome to Tetr Knowledge Base!</strong><br><br>
+            I'm here to help you find information about Tetr College of Business. Try asking:<br><br>
+            • "What programs does Tetr offer?"<br>
+            • "What are the pillars of Tetr?"<br>
+            • "Who is the founder of Tetr?"<br>
+            • "What is the Tetr Tribe?"<br>
+            • "What awards has Tetr won?"
+          </div>
         </div>
         <div class="input-area">
-            <input type="text" id="questionInput" placeholder="Type your question here..." onkeypress="if(event.keyCode===13) askQuestion()">
-            <button onclick="askQuestion()">Send</button>
+          <input type="text" id="questionInput" placeholder="Type your question here..." onkeypress="if(event.keyCode===13) askQuestion()">
+          <button onclick="askQuestion()">Send</button>
         </div>
+      </div>
+
+      <!-- Stats Panel -->
+      <div class="stats-panel">
+        <div class="stats-header">
+          <h3>📊 Knowledge Base Stats</h3>
+        </div>
+        <div class="stats-content">
+          <div class="stat-card">
+            <div class="stat-number" id="docCount">0</div>
+            <div class="stat-label">Knowledge Articles</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="categoryCount">0</div>
+            <div class="stat-label">Categories</div>
+          </div>
+          <div class="category-list" id="categoryList">
+            <!-- Categories will be loaded here -->
+          </div>
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eef2f6;">
+            <div style="font-size: 12px; color: #5a6a7a; text-align: center;">
+              🧠 <strong>Transformers.js (Quantized)</strong><br>
+              All-MiniLM-L6-v2 (23 MB) + DistilBERT
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="footer">
-        © 2025 TETR College of Business
+      © 2025 TETR College of Business — Information Quality Evaluator
     </div>
-</div>
+  </div>
 
-<script>
-    // Sample knowledge base (replace with your actual data)
-    const knowledgeBase = [
-        {
-            heading: "What is Tetr College of Business?",
-            content: "Tetr College of Business is a new-age business school established in 2024. Students journey through different countries every term, building a business in every market.",
-            keywords: "tetr, college, business, school, global, experiential"
-        },
-        {
-            heading: "Founder & Vision",
-            content: "Pratham Mittal is the founder of Tetr College of Business. An alumnus of The Doon School and Wharton, he believes that experiential education changes lives.",
-            keywords: "pratham mittal, founder, wharton, doon school, visionary"
-        },
-        {
-            heading: "Pillars of Tetr",
-            content: "Tetr is built on four pillars: 1. Learn business by doing business, 2. Learn from top CXOs and Ivy League faculty, 3. Learn at top ranked institutions, 4. Learn through immersive experiences.",
-            keywords: "pillars, four pillars, learn business, cxos, ivy league, immersive"
-        },
-        {
-            heading: "Bachelor of Management & Technology",
-            content: "A full-time 4-year business degree designed to create future global entrepreneurs. Students graduate with a degree from UBI Business School.",
-            keywords: "bmt, management, technology, business degree, 4 years, ubi"
+  <script>
+    // Global variables for Transformers.js models
+    let extractor = null;      // All-MiniLM-L6-v2 (23 MB quantized) for semantic search
+    let qaModel = null;        // DistilBERT (67 MB) for answer extraction
+    let knowledgeBase = [];
+    let articleTexts = [];
+    let articleEmbeddings = null;
+    let categories = new Set();
+    let modelsLoaded = false;
+
+    // Progress tracking
+    function updateProgress(percent, status) {
+      const progressBar = document.getElementById('progressBar');
+      const statusText = document.getElementById('loadingStatus');
+      if (progressBar) progressBar.style.width = percent + '%';
+      if (statusText) statusText.innerText = status;
+    }
+
+    // Load Transformers.js models (23 MB All-MiniLM-L6-v2 + DistilBERT)
+    async function loadModels() {
+      try {
+        updateProgress(5, 'Loading Transformers.js...');
+        
+        updateProgress(15, 'Downloading All-MiniLM-L6-v2 (23 MB)...');
+        
+        // Load the quantized 23 MB All-MiniLM-L6-v2 for semantic search
+        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        
+        updateProgress(50, 'Downloading DistilBERT (67 MB)...');
+        
+        // Load DistilBERT for question answering
+        qaModel = await pipeline('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad');
+        
+        updateProgress(70, 'Loading knowledge base...');
+        
+        // Load knowledge base from Google Sheet
+        await loadKnowledgeBase();
+        
+        updateProgress(85, 'Creating semantic index...');
+        
+        // Pre-compute embeddings for all articles
+        await precomputeEmbeddings();
+        
+        updateProgress(100, 'Ready!');
+        
+        setTimeout(() => {
+          document.getElementById('loadingOverlay').style.display = 'none';
+          modelsLoaded = true;
+          
+          addMessage("✅ AI models loaded! I can now understand natural language questions and find exact answers from Tetr's knowledge base.", false);
+        }, 500);
+        
+      } catch(error) {
+        console.error('Model loading error:', error);
+        updateProgress(100, 'Error loading models. Please refresh.');
+        document.getElementById('loadingStatus').style.color = '#e74c3c';
+      }
+    }
+
+    // Load data from Google Sheet via Apps Script
+    function loadKnowledgeBase() {
+      return new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(function(data) {
+          knowledgeBase = data;
+          updateStats();
+          
+          // Prepare article texts for embedding
+          articleTexts = knowledgeBase.map(article => 
+            `${article.heading}\n${article.content}\n${article.keywords}`
+          );
+          resolve();
+        }).withFailureHandler(reject).getKnowledgeBase();
+      });
+    }
+
+    // Pre-compute embeddings for all articles using 23 MB All-MiniLM-L6-v2
+    async function precomputeEmbeddings() {
+      if (!extractor || articleTexts.length === 0) return;
+      
+      const allEmbeddings = [];
+      
+      for (let i = 0; i < articleTexts.length; i++) {
+        // Process one at a time to avoid memory issues
+        const embedding = await extractor(articleTexts[i], { pooling: 'mean', normalize: true });
+        allEmbeddings.push(Array.from(embedding.data));
+        
+        const percent = 85 + Math.floor((i + 1) / articleTexts.length * 15);
+        updateProgress(percent, `Indexing articles (${i + 1}/${articleTexts.length})...`);
+      }
+      
+      articleEmbeddings = allEmbeddings;
+    }
+
+    function updateStats() {
+      document.getElementById('docCount').innerText = knowledgeBase.length;
+      
+      const categoryMap = new Map();
+      knowledgeBase.forEach(item => {
+        if (item.category) {
+          categoryMap.set(item.category.toLowerCase(), item.category);
         }
-    ];
+      });
+      const uniqueCategories = Array.from(categoryMap.values());
+      document.getElementById('categoryCount').innerText = uniqueCategories.length;
+      
+      const categoryContainer = document.getElementById('categoryList');
+      categoryContainer.innerHTML = uniqueCategories.map(cat => 
+        `<span class="category-tag">${cat}</span>`
+      ).join('');
+    }
 
-    function searchDocument(question) {
-        const questionWords = question.toLowerCase().split(/\s+/);
-        
-        const results = knowledgeBase.map(section => {
-            let score = 0;
-            const fullText = (section.heading + " " + section.content + " " + section.keywords).toLowerCase();
-            
-            questionWords.forEach(word => {
-                if (fullText.includes(word)) score += 5;
-                if (section.heading.toLowerCase().includes(word)) score += 10;
-            });
-            
-            return { ...section, score };
+    // Cosine similarity for semantic search
+    function cosineSimilarity(vecA, vecB) {
+      let dot = 0, magA = 0, magB = 0;
+      for (let i = 0; i < vecA.length; i++) {
+        dot += vecA[i] * vecB[i];
+        magA += vecA[i] * vecA[i];
+        magB += vecB[i] * vecB[i];
+      }
+      return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+    }
+
+    // Semantic search using 23 MB All-MiniLM-L6-v2 embeddings
+    async function semanticSearch(question) {
+      if (!extractor || !articleEmbeddings) {
+        return [];
+      }
+      
+      // Get embedding for the user's question
+      const questionEmbeddingTensor = await extractor(question, { pooling: 'mean', normalize: true });
+      const qEmb = Array.from(questionEmbeddingTensor.data);
+      
+      // Calculate similarity scores
+      const scores = [];
+      for (let i = 0; i < articleEmbeddings.length; i++) {
+        const score = cosineSimilarity(qEmb, articleEmbeddings[i]);
+        scores.push({ index: i, score: score });
+      }
+      
+      // Sort by score (higher = more relevant)
+      scores.sort((a, b) => b.score - a.score);
+      
+      // Return top 3 results with relevance threshold
+      return scores.filter(s => s.score > 0.25).slice(0, 3).map(s => ({
+        ...knowledgeBase[s.index],
+        relevance: s.score
+      }));
+    }
+
+    // Extract exact answer using DistilBERT
+    async function extractAnswer(question, context) {
+      if (!qaModel) return null;
+      
+      try {
+        const result = await qaModel({
+          question: question,
+          context: context
         });
+        return result;
+      } catch(e) {
+        console.error('QA error:', e);
+        return null;
+      }
+    }
+
+    // Main ask function
+    async function askQuestion() {
+      const question = document.getElementById('questionInput').value.trim();
+      if (!question) return;
+      
+      addMessage(question, true);
+      document.getElementById('questionInput').value = '';
+      showTyping();
+      
+      if (!modelsLoaded) {
+        removeTyping();
+        addMessage("AI models are still loading. Please wait a moment and try again.", false);
+        return;
+      }
+      
+      try {
+        // Stage 1: Semantic search to find relevant articles
+        const relevantArticles = await semanticSearch(question);
         
-        results.sort((a, b) => b.score - a.score);
-        return results.filter(r => r.score > 0).slice(0, 2);
+        if (relevantArticles.length === 0) {
+          removeTyping();
+          addMessage("I couldn't find specific information about that. Please try rephrasing your question.", false);
+          return;
+        }
+        
+        // Build context from top articles (limit to ~2000 chars for DistilBERT)
+        let context = "";
+        for (let i = 0; i < Math.min(relevantArticles.length, 3); i++) {
+          context += `[${relevantArticles[i].heading}]\n${relevantArticles[i].content}\n\n`;
+        }
+        if (context.length > 2000) {
+          context = context.substring(0, 2000);
+        }
+        
+        // Stage 2: Extract exact answer using DistilBERT
+        const answer = await extractAnswer(question, context);
+        
+        removeTyping();
+        
+        // Format the response
+        let response = `<strong>📌 ${relevantArticles[0].heading}</strong><br><br>`;
+        
+        if (answer && answer.answer && answer.score > 0.2) {
+          // AI found a specific answer
+          response += `${answer.answer}<br><br>`;
+          response += `<span class="confidence-badge">✓ Confidence: ${Math.round(answer.score * 100)}%</span>`;
+        } else {
+          // Fallback to the article content
+          response += relevantArticles[0].content.substring(0, 600);
+          if (relevantArticles[0].content.length > 600) response += '...';
+        }
+        
+        // Show related topics
+        if (relevantArticles.length > 1) {
+          response += `<br><br><hr><strong>🔗 Also relevant:</strong><br>`;
+          for (let i = 1; i < Math.min(relevantArticles.length, 3); i++) {
+            response += `• <strong>${relevantArticles[i].heading}</strong><br>`;
+          }
+        }
+        
+        response += `<br><span style="font-size: 11px; color: #009C50;">🧠 Transformers.js (23 MB quantized All-MiniLM + DistilBERT)</span>`;
+        
+        addMessage(response, false);
+        
+      } catch(error) {
+        console.error('Error:', error);
+        removeTyping();
+        addMessage("Sorry, I encountered an error. Please try again.", false);
+      }
     }
 
     function addMessage(text, isUser) {
-        const container = document.getElementById('chatMessages');
-        const div = document.createElement('div');
-        div.className = isUser ? 'message user-message' : 'message bot-message';
-        div.innerHTML = text.replace(/\n/g, '<br>');
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+      const chatMessages = document.getElementById('chatMessages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = isUser ? 'message user-message' : 'message bot-message';
+      messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+      chatMessages.appendChild(messageDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function showTyping() {
-        const container = document.getElementById('chatMessages');
-        const typing = document.createElement('div');
-        typing.className = 'message bot-message';
-        typing.id = 'typingIndicator';
-        typing.innerHTML = 'Thinking...';
-        container.appendChild(typing);
-        container.scrollTop = container.scrollHeight;
+      const chatMessages = document.getElementById('chatMessages');
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'typing-indicator';
+      typingDiv.id = 'typingIndicator';
+      typingDiv.innerHTML = '<span></span><span></span><span></span>';
+      chatMessages.appendChild(typingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     function removeTyping() {
-        const typing = document.getElementById('typingIndicator');
-        if (typing) typing.remove();
+      const indicator = document.getElementById('typingIndicator');
+      if (indicator) indicator.remove();
     }
 
-    function askQuestion() {
-        const question = document.getElementById('questionInput').value.trim();
-        if (!question) return;
-        
-        addMessage(question, true);
-        document.getElementById('questionInput').value = '';
-        showTyping();
-        
-        setTimeout(() => {
-            const results = searchDocument(question);
-            removeTyping();
-            
-            if (results.length === 0) {
-                addMessage("I couldn't find that information. Try asking about programs, founder, or pillars.", false);
-                return;
-            }
-            
-            let response = `<strong>${results[0].heading}</strong><br><br>${results[0].content}`;
-            addMessage(response, false);
-        }, 500);
+    function resetChat() {
+      const chatMessages = document.getElementById('chatMessages');
+      chatMessages.innerHTML = `
+        <div class="message bot-message">
+          <strong>👋 Welcome to Tetr Knowledge Base!</strong><br><br>
+          I'm here to help you find information about Tetr College of Business. Try asking:<br><br>
+          • "What programs does Tetr offer?"<br>
+          • "What are the pillars of Tetr?"<br>
+          • "Who is the founder of Tetr?"<br>
+          • "What is the Tetr Tribe?"<br>
+          • "What awards has Tetr won?"
+        </div>
+      `;
     }
 
+    // Initialize when page loads
     window.onload = function() {
-        // You'll replace this with your Google Apps Script call
-        console.log("Tetr Knowledge Base ready!");
+      loadModels();
     };
-</script>
+  </script>
 </body>
 </html>
