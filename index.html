@@ -2,20 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TETR WIKI - Optimized</title>
+    <title>TETR WIKI</title>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"
+            }
+        }
+    </script>
     <style>
         :root { --dark-green: #004822; --light-green: #009C50; --white: #FFFFFF; }
         body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         header { background: var(--dark-green); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light-green); }
         #user-welcome { color: var(--white); font-weight: 500; }
-        #confidence-badge { font-size: 0.7rem; margin-left: 10px; opacity: 0.8; }
 
-        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; }
+        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--light-green); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        #progress-text { font-size: 0.8rem; margin-top: 10px; opacity: 0.8; }
 
         #chat-window { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
         .msg { max-width: 80%; padding: 18px 22px; border-radius: 15px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
@@ -47,13 +52,13 @@
 
 <div id="loader">
     <div class="spinner"></div>
-    <h2 style="margin-top:20px;">TETR INTELLIGENCE</h2>
-    <p id="status">Loading knowledge base...</p>
-    <div id="progress-text"></div>
+    <h2 style="margin-top:20px;">⚡ TETR WIKI</h2>
+    <p id="status">Scanning Columns Heading, Content, Keywords, Category...</p>
+    <p id="progress-detail" style="font-size:0.8rem; margin-top:10px; opacity:0.8;"></p>
 </div>
 
 <header>
-    <span style="font-weight: 700;">⚡ TETR WIKI v6.0</span>
+    <span style="font-weight: 700;">TETR WIKI</span>
     <span id="user-welcome">Welcome @user</span>
 </header>
 
@@ -61,7 +66,7 @@
 
 <div class="dock">
     <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎤</button>
-    <input type="text" id="userInput" placeholder="Ask about programs, admission, founders..." onkeypress="if(event.key==='Enter') searchFullSemantic()">
+    <input type="text" id="userInput" placeholder="Ask me anything about Tetr programs, admission, policies..." onkeypress="if(event.key==='Enter') searchFullSemantic()">
     <button class="send-btn" onclick="searchFullSemantic()">ASK</button>
 </div>
 
@@ -71,48 +76,67 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Salj0Qpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
     let db = [];
-    let embedder;
-    let recognition;
+    let embedder = null;
+    let recognition = null;
     let isListening = false;
-    let cachedEmbeddings = new Map(); // Cache for row embeddings
+    let rowEmbeddings = new Map(); // Cache for row embeddings
     let responseCache = new Map(); // Cache for Q&A pairs
-    let columnMap = { heading: null, content: null, keywords: null, category: null };
+    
+    // Column names from your sheet: A1=ID, B1=Heading, C1=Content, D1=Keywords, E1=Category
+    const COL_ID = 'ID';
+    const COL_HEADING = 'Heading';
+    const COL_CONTENT = 'Content';
+    const COL_KEYWORDS = 'Keywords';
+    const COL_CATEGORY = 'Category';
     
     async function init() {
         try {
-            document.getElementById('progress-text').innerText = "Fetching CSV from Google Sheets...";
+            const userEmail = "student@tetr.edu";
+            document.getElementById('user-welcome').innerText = `Welcome @${userEmail.split('@')[0]}`;
             
-            // Load CSV with cache-busting
-            const res = await fetch(CSV_URL + "&_t=" + Date.now());
+            document.getElementById('progress-detail').innerText = "Downloading CSV from Google Sheets...";
+            
+            // Your original working CSV fetch style with cache-busting
+            const res = await fetch(CSV_URL + "?v=" + Date.now());
             const text = await res.text();
             
-            document.getElementById('progress-text').innerText = "Parsing CSV data...";
-            const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-            db = parsed.data;
+            document.getElementById('progress-detail').innerText = "Parsing CSV data...";
             
-            // Filter empty rows
-            db = db.filter(row => Object.values(row).some(v => v && v.trim()));
-            document.getElementById('progress-text').innerText = `Loaded ${db.length} records. Detecting columns...`;
+            // Your original working PapaParse method
+            db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
             
-            // Auto-detect column names (case insensitive)
-            if (db.length > 0) {
-                const cols = Object.keys(db[0]);
-                columnMap.heading = cols.find(c => c.toLowerCase().includes('head') || c.toLowerCase().includes('title')) || cols[0];
-                columnMap.content = cols.find(c => c.toLowerCase().includes('content') || c.toLowerCase().includes('desc')) || cols[1];
-                columnMap.keywords = cols.find(c => c.toLowerCase().includes('keyword') || c.toLowerCase().includes('tag')) || null;
-                columnMap.category = cols.find(c => c.toLowerCase().includes('category') || c.toLowerCase().includes('cat')) || null;
-                
-                document.getElementById('progress-text').innerHTML = `✅ Columns: ${cols.join(', ')}<br>📚 Using: "${columnMap.heading}" → "${columnMap.content}"`;
-            }
+            // Filter out completely empty rows
+            db = db.filter(row => {
+                return row[COL_HEADING] || row[COL_CONTENT] || row[COL_KEYWORDS];
+            });
             
-            document.getElementById('progress-text').innerHTML += "<br>🤖 Loading AI model (23MB)...";
+            document.getElementById('progress-detail').innerText = `Loaded ${db.length} records. Loading AI Model (23MB)...`;
+            
+            // Load the AI model
             embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
             
-            // Pre-compute embeddings for all rows (parallel processing)
-            document.getElementById('progress-text').innerHTML += "<br>🧠 Pre-computing embeddings for faster responses...";
-            await precomputeEmbeddings();
+            document.getElementById('progress-detail').innerText = `Pre-computing embeddings for ${db.length} records...`;
             
-            // Setup speech recognition
+            // Pre-compute embeddings for all rows (like your original but optimized)
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                // Combine all relevant columns for richer meaning
+                const rowContext = [
+                    row[COL_HEADING] || "",
+                    row[COL_CONTENT] || "",
+                    row[COL_KEYWORDS] || "",
+                    row[COL_CATEGORY] || ""
+                ].filter(text => text).join(" ");
+                
+                const embedding = await embedder(rowContext, { pooling: 'mean', normalize: true });
+                rowEmbeddings.set(row, Array.from(embedding.data));
+                
+                if ((i + 1) % 10 === 0) {
+                    document.getElementById('progress-detail').innerText = `Pre-computing: ${i + 1}/${db.length}...`;
+                }
+            }
+            
+            // Setup speech recognition (your original style)
             const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechAPI) {
                 recognition = new SpeechAPI();
@@ -123,161 +147,149 @@
                     if(isListening) toggleVoice();
                     searchFullSemantic();
                 };
-                recognition.onerror = () => { if(isListening) toggleVoice(); };
+                recognition.onerror = () => {
+                    if(isListening) toggleVoice();
+                };
             }
-
+            
             document.getElementById('loader').style.display = 'none';
-            addMsg(`✅ <b>TETR Wiki Ready</b><br>📚 ${db.length} knowledge entries loaded<br>💡 Try asking about ${db[0][columnMap.heading] || "our programs"}`, "bot");
-        } catch (e) {
-            console.error(e);
-            document.getElementById('status').innerText = "Sync Error: " + e.message;
-            document.getElementById('progress-text').innerText = "Please refresh or check CSV URL";
+            addMsg(`✅ <b>Tetr Wiki AI is ready!</b><br>📚 Indexed ${db.length} knowledge entries.<br>💡 Ask me about any topic in the database.`, "bot");
+            
+        } catch (error) {
+            console.error("Init error:", error);
+            document.getElementById('status').innerText = "Sync Error: " + error.message;
+            document.getElementById('progress-detail').innerText = "Please check console for details. Refresh to try again.";
         }
     }
     
-    async function precomputeEmbeddings() {
-        const batchSize = 10;
-        const batches = [];
-        
-        for (let i = 0; i < db.length; i += batchSize) {
-            batches.push(db.slice(i, i + batchSize));
+    function cosineSimilarity(vecA, vecB) {
+        if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+        let dotProduct = 0;
+        let normA = 0;
+        let normB = 0;
+        for (let i = 0; i < vecA.length; i++) {
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
         }
-        
-        let processed = 0;
-        for (const batch of batches) {
-            const texts = batch.map(row => {
-                // Combine all relevant columns for richer embeddings
-                const parts = [
-                    row[columnMap.heading] || "",
-                    row[columnMap.content] || "",
-                    row[columnMap.keywords] || "",
-                    row[columnMap.category] || ""
-                ];
-                return parts.filter(p => p).join(" ");
-            });
-            
-            const embeddings = await Promise.all(texts.map(t => 
-                embedder(t, { pooling: 'mean', normalize: true })
-            ));
-            
-            batch.forEach((row, idx) => {
-                cachedEmbeddings.set(row, embeddings[idx].data);
-            });
-            
-            processed += batch.length;
-            document.getElementById('progress-text').innerHTML = `🧠 Pre-computing: ${processed}/${db.length} embeddings...`;
-        }
-    }
-    
-    function cosineSimilarity(a, b) {
-        if (!a || !b) return 0;
-        let dot = 0, magA = 0, magB = 0;
-        for (let i = 0; i < a.length; i++) {
-            dot += a[i] * b[i];
-            magA += a[i] * a[i];
-            magB += b[i] * b[i];
-        }
-        return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
     
     window.searchFullSemantic = async function() {
         const input = document.getElementById('userInput');
         const query = input.value.trim();
         if(!query) return;
-
+        
         addMsg(query, 'user');
         input.value = '';
         
-        // Check response cache
-        if (responseCache.has(query)) {
-            const cached = responseCache.get(query);
-            addMsg(cached.html, 'bot');
+        if (!embedder) {
+            addMsg("⚠️ AI model still loading. Please wait a moment...", "bot");
             return;
         }
         
-        const qOutput = await embedder(query, { pooling: 'mean', normalize: true });
-        const qVector = Array.from(qOutput.data);
-        
-        let bestMatch = null;
-        let maxSim = -1;
-        
-        // Use cached embeddings for fast comparison
-        for (let row of db) {
-            const rowVector = cachedEmbeddings.get(row);
-            if (!rowVector) continue;
-            
-            const sim = cosineSimilarity(qVector, rowVector);
-            if (sim > maxSim) {
-                maxSim = sim;
-                bestMatch = row;
-            }
+        // Check response cache first
+        if (responseCache.has(query)) {
+            const cached = responseCache.get(query);
+            addMsg(cached, 'bot');
+            return;
         }
         
-        const confidence = Math.round(maxSim * 100);
-        const threshold = 0.35; // Minimum 35% similarity
-        
-        if (bestMatch && maxSim > threshold) {
-            const heading = bestMatch[columnMap.heading] || "Information";
-            const content = bestMatch[columnMap.content] || "No detailed content";
-            const keywords = columnMap.keywords ? bestMatch[columnMap.keywords] : null;
+        try {
+            // Convert question to embedding
+            const qOutput = await embedder(query, { pooling: 'mean', normalize: true });
+            const qVector = Array.from(qOutput.data);
             
-            // Confidence color coding
-            const confidenceColor = confidence > 70 ? 'var(--light-green)' : (confidence > 50 ? '#f0a500' : '#ff6b6b');
+            let bestMatch = null;
+            let maxSim = -1;
             
-            const html = `
-                <div>
-                    <b style="color:var(--dark-green); font-size:1.1rem;">📘 ${heading}</b>
-                    <div class="confidence-bar">
-                        <div class="confidence-fill" style="width: ${confidence}%; background: ${confidenceColor};"></div>
+            // Compare with all rows using cached embeddings
+            for (let row of db) {
+                const rowVector = rowEmbeddings.get(row);
+                if (!rowVector) continue;
+                
+                const sim = cosineSimilarity(qVector, rowVector);
+                if (sim > maxSim) {
+                    maxSim = sim;
+                    bestMatch = row;
+                }
+            }
+            
+            const confidence = Math.round(maxSim * 100);
+            const threshold = 35; // 35% similarity minimum
+            
+            if (bestMatch && maxSim > (threshold / 100)) {
+                // Your original display format using the actual column names
+                const heading = bestMatch[COL_HEADING] || "Information";
+                const content = bestMatch[COL_CONTENT] || "No detailed content available";
+                const keywords = bestMatch[COL_KEYWORDS] || "";
+                const category = bestMatch[COL_CATEGORY] || "";
+                
+                // Color based on confidence
+                const barColor = confidence > 70 ? '#009C50' : (confidence > 50 ? '#f0a500' : '#ff6b6b');
+                
+                const html = `
+                    <div>
+                        <b style="color:var(--dark-green); font-size:1.1rem;">📘 ${heading}</b>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${confidence}%; background: ${barColor};"></div>
+                        </div>
+                        <div style="font-size:0.75rem; margin: 5px 0;">🎯 AI Confidence: ${confidence}%</div>
+                        <div style="margin-top: 12px;">${content}</div>
+                        ${keywords ? `<div style="margin-top: 8px; font-size:0.8rem; opacity:0.7;">🔑 Keywords: ${keywords}</div>` : ''}
+                        ${category ? `<div style="font-size:0.75rem; opacity:0.6; margin-top: 5px;">📁 Category: ${category}</div>` : ''}
+                        <button class="listen-btn" onclick="speakText(\`${content.replace(/'/g, "\\'").replace(/"/g, '&quot;')}\`)">🔊 Listen to Answer</button>
                     </div>
-                    <div style="font-size:0.7rem; margin: 5px 0;">🔍 Match confidence: ${confidence}%</div>
-                    <div style="margin-top: 12px;">${content}</div>
-                    ${keywords ? `<div style="margin-top: 8px; font-size:0.8rem; opacity:0.7;">🔑 ${keywords}</div>` : ''}
-                    <button class="listen-btn" onclick="speakText(\`${content.replace(/'/g, "\\'").replace(/"/g, '&quot;')}\`)">🔊 Listen to Answer</button>
-                </div>
-            `;
-            
-            // Cache the response
-            responseCache.set(query, { html });
-            
-            addMsg(html, 'bot');
-        } else {
-            addMsg(`❌ I couldn't find a confident match (best was ${confidence}% similar). Please try different keywords or ask about a different topic.`, "bot");
+                `;
+                
+                // Cache the response
+                responseCache.set(query, html);
+                addMsg(html, 'bot');
+            } else {
+                addMsg(`❌ I couldn't find a confident match (${confidence}% similarity).<br><br>💡 Tips:<br>• Try different wording<br>• Use keywords from the database<br>• Check if the CSV loaded correctly (${db.length} records)`, "bot");
+            }
+        } catch (error) {
+            console.error("Search error:", error);
+            addMsg("❌ Search error: " + error.message, "bot");
         }
     }
     
     window.toggleVoice = () => {
-        if(!recognition) return alert("Speech recognition not supported in this browser.");
+        if(!recognition) {
+            alert("Speech recognition not supported in this browser.");
+            return;
+        }
         const btn = document.getElementById('micBtn');
-        if(isListening) { 
-            recognition.stop(); 
-            isListening = false; 
+        if(isListening) {
+            recognition.stop();
+            isListening = false;
             btn.classList.remove('mic-active');
             btn.innerText = '🎤';
-        } else { 
-            recognition.start(); 
-            isListening = true; 
+        } else {
+            recognition.start();
+            isListening = true;
             btn.classList.add('mic-active');
             btn.innerText = '🎙️';
         }
     };
     
-    window.speakText = (text) => { 
-        window.speechSynthesis.cancel(); 
+    window.speakText = (text) => {
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text.substring(0, 500));
         utterance.rate = 0.9;
         window.speechSynthesis.speak(utterance);
     };
     
-    function addMsg(t, c) {
+    function addMsg(text, sender) {
         const win = document.getElementById('chat-window');
         const d = document.createElement('div');
-        d.className = `msg ${c}`;
-        d.innerHTML = t;
+        d.className = `msg ${sender}`;
+        d.innerHTML = text;
         win.appendChild(d);
         win.scrollTop = win.scrollHeight;
     }
     
+    // Start everything
     init();
 </script>
 </body>
