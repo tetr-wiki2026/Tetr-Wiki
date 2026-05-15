@@ -21,12 +21,12 @@
         .bot { background: var(--white); color: #333; align-self: flex-start; border-left: 6px solid var(--light-green); }
         .user { background: var(--dark-green); color: var(--white); align-self: flex-end; }
         
-        .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 16px; cursor: pointer; margin-top: 10px; font-weight: bold; }
         
         .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; align-items: center; }
         input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; }
         
-        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; }
         .mic-active { background: #ff4b2b; color: white; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         
@@ -38,7 +38,7 @@
 <div id="loader">
     <div class="spinner"></div>
     <h2 style="margin-top:20px;">TETR WIKI</h2>
-    <p id="status">Activating Semantic & Voice Engines...</p>
+    <p id="status">Scanning Columns B, C, D, and E...</p>
 </div>
 
 <header>
@@ -50,8 +50,8 @@
 
 <div class="dock">
     <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎤</button>
-    <input type="text" id="userInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') searchSemantic()">
-    <button class="send-btn" onclick="searchSemantic()">SEARCH</button>
+    <input type="text" id="userInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') searchFullSemantic()">
+    <button class="send-btn" onclick="searchFullSemantic()">SEARCH</button>
 </div>
 
 <script type="module">
@@ -66,35 +66,31 @@
 
     async function init() {
         try {
-            // 1. User Display
-            const userEmail = "admin@tetr.edu"; // Dynamic placeholder
+            const userEmail = "admin@tetr.edu"; 
             document.getElementById('user-welcome').innerText = `Welcome @${userEmail.split('@')[0]}`;
 
-            // 2. Fetch Spreadsheet
             const res = await fetch(CSV_URL + "&v=" + Date.now());
             const text = await res.text();
+            
+            // PapaParse maps columns to object keys based on the first row (headers)
             db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
 
-            // 3. Load Semantic Model
             embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
 
-            // 4. Setup Speech Recognition
             const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechAPI) {
                 recognition = new SpeechAPI();
-                recognition.continuous = false;
                 recognition.onresult = (e) => {
                     document.getElementById('userInput').value = e.results[0][0].transcript;
-                    toggleVoice(); 
-                    searchSemantic();
+                    if(isListening) toggleVoice();
+                    searchFullSemantic();
                 };
-                recognition.onend = () => { if(isListening) toggleVoice(); };
             }
 
             document.getElementById('loader').style.display = 'none';
-            addMsg("<b>Tetr Wiki:</b> Please ask me any questions that you might have.", "bot");
+            addMsg("<b>Tetr Wiki:</b> I have indexed all sheet columns. Please ask your questions.", "bot");
         } catch (e) {
-            document.getElementById('status').innerText = "Sync Error: Please check Sheet settings.";
+            document.getElementById('status').innerText = "Sync Error: Check Columns B-E headers.";
         }
     }
 
@@ -102,7 +98,7 @@
         return a.reduce((sum, val, i) => sum + val * b[i], 0);
     }
 
-    window.searchSemantic = async function() {
+    window.searchFullSemantic = async function() {
         const input = document.getElementById('userInput');
         const query = input.value.trim();
         if(!query) return;
@@ -117,8 +113,11 @@
         let maxSim = -1;
 
         for (let row of db) {
-            const rowText = `${row.Heading} ${row.Content} ${row.Keywords || ''}`;
-            const rOutput = await embedder(rowText, { pooling: 'mean', normalize: true });
+            // CRITICAL FIX: Merging all relevant columns for the AI to "read"
+            // We use Object.values to capture all columns (B, C, D, E, etc.)
+            const rowContext = Object.values(row).join(" ");
+            
+            const rOutput = await embedder(rowContext, { pooling: 'mean', normalize: true });
             const rVector = Array.from(rOutput.data);
             
             const sim = cosineSimilarity(qVector, rVector);
@@ -128,36 +127,27 @@
             }
         }
 
-        if (bestMatch && maxSim > 0.45) {
+        if (bestMatch && maxSim > 0.40) {
+            // Displaying Heading (B) and Content (C)
+            // But the search logic above used D and E to find this!
             const html = `
-                <b style="color:var(--dark-green)">${bestMatch.Heading}</b><br>${bestMatch.Content}
-                <br><button class="listen-btn" onclick="speak(\`${bestMatch.Content.replace(/'/g, "\\'")}\`)">Listen to Answer</button>
+                <b style="color:var(--dark-green)">${Object.values(bestMatch)[0]}</b><br>${Object.values(bestMatch)[1]}
+                <br><button class="listen-btn" onclick="speak(\`${Object.values(bestMatch)[1].replace(/'/g, "\\'")}\`)">Listen to Answer</button>
             `;
             addMsg(html, 'bot');
         } else {
-            addMsg("I couldn't find a conceptually close answer. Could you please rephrase?", "bot");
+            addMsg("I couldn't find a confident match across all columns. Try rephrasing.", "bot");
         }
     }
 
+    // ... (Voice and Messaging functions remain same as previous version)
     window.toggleVoice = () => {
-        if(!recognition) return alert("Voice recognition not supported in this browser.");
+        if(!recognition) return alert("Speech recognition not supported.");
         const btn = document.getElementById('micBtn');
-        if(isListening) {
-            recognition.stop();
-            isListening = false;
-            btn.classList.remove('mic-active');
-        } else {
-            recognition.start();
-            isListening = true;
-            btn.classList.add('mic-active');
-        }
+        if(isListening) { recognition.stop(); isListening = false; btn.classList.remove('mic-active'); }
+        else { recognition.start(); isListening = true; btn.classList.add('mic-active'); }
     };
-
-    window.speak = (t) => {
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(t.substring(0, 500)));
-    };
-
+    window.speak = (t) => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(t.substring(0, 500))); };
     function addMsg(t, c) {
         const win = document.getElementById('chat-window');
         const d = document.createElement('div');
@@ -166,7 +156,6 @@
         win.appendChild(d);
         win.scrollTop = win.scrollHeight;
     }
-
     init();
 </script>
 </body>
