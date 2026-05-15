@@ -10,8 +10,9 @@
         body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         header { background: var(--dark-green); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light-green); }
-        
-        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #user-welcome { color: var(--white); font-weight: 500; }
+
+        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--light-green); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
@@ -22,9 +23,14 @@
         
         .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; margin-top: 10px; font-weight: bold; }
         
-        .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; }
+        .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; align-items: center; }
         input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; }
-        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; border-radius: 30px; cursor: pointer; font-weight: 700; }
+        
+        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .mic-active { background: #ff4b2b; color: white; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        
+        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 50px; border-radius: 30px; cursor: pointer; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -32,58 +38,71 @@
 <div id="loader">
     <div class="spinner"></div>
     <h2 style="margin-top:20px;">TETR WIKI</h2>
-    <p id="status">Encoding Semantic Knowledge...</p>
+    <p id="status">Activating Semantic & Voice Engines...</p>
 </div>
 
 <header>
     <span style="font-weight: 700;">TETR WIKI</span>
-    <span id="user-display" style="color: white;">Welcome @user</span>
+    <span id="user-welcome">Welcome @user</span>
 </header>
 
 <div id="chat-window"></div>
 
 <div class="dock">
-    <input type="text" id="userInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') searchAI()">
-    <button class="send-btn" onclick="searchAI()">SEARCH</button>
+    <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎤</button>
+    <input type="text" id="userInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') searchSemantic()">
+    <button class="send-btn" onclick="searchSemantic()">SEARCH</button>
 </div>
 
 <script type="module">
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     
-    // Using your verified CSV link
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
     let db = [];
     let embedder;
-    let dbEmbeddings = [];
+    let recognition;
+    let isListening = false;
 
     async function init() {
         try {
-            // 1. Fetch Data
+            // 1. User Display
+            const userEmail = "admin@tetr.edu"; // Dynamic placeholder
+            document.getElementById('user-welcome').innerText = `Welcome @${userEmail.split('@')[0]}`;
+
+            // 2. Fetch Spreadsheet
             const res = await fetch(CSV_URL + "&v=" + Date.now());
             const text = await res.text();
             db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
 
-            // 2. Load the actual AI model (Xenova/all-MiniLM-L6-v2)
-            // This replaces Fuse entirely.
+            // 3. Load Semantic Model
             embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
 
-            // 3. Pre-calculate embeddings for the spreadsheet (Semantic Preparation)
-            // In a small sheet, we can do this on the fly.
+            // 4. Setup Speech Recognition
+            const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(SpeechAPI) {
+                recognition = new SpeechAPI();
+                recognition.continuous = false;
+                recognition.onresult = (e) => {
+                    document.getElementById('userInput').value = e.results[0][0].transcript;
+                    toggleVoice(); 
+                    searchSemantic();
+                };
+                recognition.onend = () => { if(isListening) toggleVoice(); };
+            }
+
             document.getElementById('loader').style.display = 'none';
             addMsg("<b>Tetr Wiki:</b> Please ask me any questions that you might have.", "bot");
-            
         } catch (e) {
-            document.getElementById('status').innerText = "Sync Error: Check CSV Link";
+            document.getElementById('status').innerText = "Sync Error: Please check Sheet settings.";
         }
     }
 
-    // Mathematical Dot Product to find conceptual similarity
-    function similarity(a, b) {
+    function cosineSimilarity(a, b) {
         return a.reduce((sum, val, i) => sum + val * b[i], 0);
     }
 
-    window.searchAI = async function() {
+    window.searchSemantic = async function() {
         const input = document.getElementById('userInput');
         const query = input.value.trim();
         if(!query) return;
@@ -91,36 +110,48 @@
         addMsg(query, 'user');
         input.value = '';
 
-        // Generate a "thought vector" for the user's question
-        const output = await embedder(query, { pooling: 'mean', normalize: true });
-        const queryVector = Array.from(output.data);
+        const qOutput = await embedder(query, { pooling: 'mean', normalize: true });
+        const qVector = Array.from(qOutput.data);
 
         let bestMatch = null;
         let maxSim = -1;
 
-        // Loop through the data and find the conceptual match
         for (let row of db) {
-            const combinedText = `${row.Heading} ${row.Content} ${row.Keywords || ''}`;
-            const rowOutput = await embedder(combinedText, { pooling: 'mean', normalize: true });
-            const rowVector = Array.from(rowOutput.data);
+            const rowText = `${row.Heading} ${row.Content} ${row.Keywords || ''}`;
+            const rOutput = await embedder(rowText, { pooling: 'mean', normalize: true });
+            const rVector = Array.from(rOutput.data);
             
-            const sim = similarity(queryVector, rowVector);
+            const sim = cosineSimilarity(qVector, rVector);
             if (sim > maxSim) {
                 maxSim = sim;
                 bestMatch = row;
             }
         }
 
-        if (bestMatch && maxSim > 0.5) {
+        if (bestMatch && maxSim > 0.45) {
             const html = `
                 <b style="color:var(--dark-green)">${bestMatch.Heading}</b><br>${bestMatch.Content}
                 <br><button class="listen-btn" onclick="speak(\`${bestMatch.Content.replace(/'/g, "\\'")}\`)">Listen to Answer</button>
             `;
             addMsg(html, 'bot');
         } else {
-            addMsg("I'm sorry, I couldn't find a conceptually close answer in the Wiki. Please try rephrasing.", "bot");
+            addMsg("I couldn't find a conceptually close answer. Could you please rephrase?", "bot");
         }
     }
+
+    window.toggleVoice = () => {
+        if(!recognition) return alert("Voice recognition not supported in this browser.");
+        const btn = document.getElementById('micBtn');
+        if(isListening) {
+            recognition.stop();
+            isListening = false;
+            btn.classList.remove('mic-active');
+        } else {
+            recognition.start();
+            isListening = true;
+            btn.classList.add('mic-active');
+        }
+    };
 
     window.speak = (t) => {
         window.speechSynthesis.cancel();
