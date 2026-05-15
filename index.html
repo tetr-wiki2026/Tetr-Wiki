@@ -1,583 +1,223 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TETR Knowledge Base</title>
-  
-  <!-- Load Transformers.js from multiple CDNs for reliability -->
-  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.13.0/dist/transformers.min.js"></script>
-  
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
-      min-height: 100vh;
-    }
-    .navbar {
-      background: #004822;
-      padding: 16px 32px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: #009C50;
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      font-weight: bold;
-      color: white;
-    }
-    .logo-text h1 { color: white; font-size: 20px; display: inline; margin-left: 10px; }
-    .logo-text p { color: rgba(255,255,255,0.7); font-size: 12px; margin-left: 10px; }
-    .nav-link { color: white; text-decoration: none; cursor: pointer; background: #009C50; padding: 8px 16px; border-radius: 20px; }
-    
-    #loadingOverlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #004822;
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-    .loading-card {
-      background: white;
-      padding: 40px;
-      border-radius: 24px;
-      text-align: center;
-      max-width: 450px;
-      margin: 20px;
-    }
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background: #e0e0e0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 20px 0;
-    }
-    .progress-bar {
-      width: 0%;
-      height: 100%;
-      background: #009C50;
-      transition: width 0.3s;
-    }
-    .loading-status { font-size: 12px; color: #666; margin-top: 10px; }
-    .retry-btn {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background: #009C50;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .main-container { max-width: 1200px; margin: 0 auto; padding: 32px; }
-    .hero {
-      background: white;
-      border-radius: 24px;
-      padding: 48px;
-      text-align: center;
-      margin-bottom: 32px;
-    }
-    .hero h2 { color: #004822; font-size: 32px; margin-bottom: 12px; }
-    .hero-badge {
-      background: #e8f5e9;
-      color: #009C50;
-      padding: 6px 14px;
-      border-radius: 40px;
-      font-size: 12px;
-      display: inline-block;
-      margin-bottom: 20px;
-    }
-    .chat-container {
-      background: white;
-      border-radius: 24px;
-      overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-    }
-    .chat-header {
-      background: #004822;
-      padding: 20px 24px;
-      color: white;
-    }
-    .chat-messages {
-      height: 500px;
-      overflow-y: auto;
-      padding: 24px;
-      background: #fafbfc;
-    }
-    .message {
-      max-width: 80%;
-      padding: 12px 18px;
-      border-radius: 20px;
-      margin-bottom: 16px;
-      line-height: 1.5;
-    }
-    .user-message {
-      background: #009C50;
-      color: white;
-      margin-left: auto;
-      border-bottom-right-radius: 4px;
-    }
-    .bot-message {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-bottom-left-radius: 4px;
-    }
-    .bot-message strong { color: #004822; }
-    .input-area {
-      padding: 20px 24px;
-      border-top: 1px solid #eef2f6;
-      display: flex;
-      gap: 12px;
-    }
-    .input-area input {
-      flex: 1;
-      padding: 14px 18px;
-      border: 1px solid #dce3e9;
-      border-radius: 48px;
-      outline: none;
-    }
-    .input-area input:focus { border-color: #009C50; }
-    .input-area button {
-      background: #009C50;
-      border: none;
-      border-radius: 48px;
-      padding: 12px 28px;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .footer { text-align: center; padding: 32px; color: #7a8a9a; font-size: 12px; }
-    .typing-indicator {
-      background: white;
-      padding: 12px 18px;
-      border-radius: 20px;
-      border: 1px solid #e2e8f0;
-      display: inline-block;
-    }
-    .typing-indicator span {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #009C50;
-      border-radius: 50%;
-      animation: blink 1.4s infinite;
-      margin: 0 2px;
-    }
-    @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-    .error-message { color: #e74c3c; background: #fdf0ef; padding: 12px; border-radius: 8px; margin: 10px 0; }
-    @media (max-width: 900px) { .main-container { padding: 20px; } .hero { padding: 32px 24px; } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetr Wiki | Intelligence Engine</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    <script src="https://unpkg.com/compromise"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/franc@6.1.0/dist/franc.min.js"></script>
+
+    <style>
+        :root {
+            --tetr-green: #004822; --tetr-pink: #F8769A; --tetr-gold: #F0C300;
+            --glass: rgba(255, 255, 255, 0.95); --bg: #e9ecef;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); margin: 0; height: 100vh; display: flex; flex-direction: column; }
+
+        /* Setup Overlay */
+        #setup-overlay {
+            position: fixed; inset: 0; background: var(--tetr-green); color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 2000; transition: all 0.8s ease;
+        }
+        .loading-card { background: rgba(0,0,0,0.2); padding: 30px; border-radius: 20px; text-align: center; max-width: 400px; border: 1px solid var(--tetr-gold); }
+        .progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; margin: 20px 0; overflow: hidden; }
+        #progress-fill { width: 0%; height: 100%; background: var(--tetr-pink); transition: width 0.3s; }
+
+        /* Main UI */
+        header { background: var(--tetr-green); color: white; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        header h1 { margin: 0; font-size: 1.2rem; color: var(--tetr-gold); letter-spacing: 2px; }
+        
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+        
+        .msg { max-width: 80%; padding: 15px 20px; border-radius: 18px; font-size: 0.95rem; line-height: 1.6; animation: slideUp 0.4s ease forwards; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .bot { background: white; align-self: flex-start; border-left: 6px solid var(--tetr-gold); color: #2c3e50; }
+        .user { background: var(--tetr-green); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        
+        .meta-info { font-size: 0.7rem; color: #95a5a6; margin-top: 8px; display: flex; justify-content: space-between; }
+        .confidence-pill { background: #ecf0f1; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+
+        .input-bar { background: var(--white); padding: 20px; display: flex; gap: 12px; align-items: center; border-top: 1px solid #dee2e6; }
+        input { flex: 1; padding: 14px 25px; border: 2px solid #f1f3f5; border-radius: 30px; font-size: 1rem; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--tetr-pink); }
+        
+        .action-btn { width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; color: white; }
+        .mic-btn { background: #6c757d; }
+        .send-btn { background: var(--tetr-green); }
+        .action-btn:hover { transform: scale(1.1); }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body>
 
-<div id="loadingOverlay">
-  <div class="loading-card">
-    <div class="loading-icon" style="font-size: 48px; margin-bottom: 20px;">🧠</div>
-    <h3>Loading Tetr AI Assistant</h3>
-    <p id="loadingMessage">Initializing...</p>
-    <div class="progress-bar-container">
-      <div class="progress-bar" id="progressBar"></div>
+<div id="setup-overlay">
+    <div class="loading-card">
+        <h2 style="color: var(--tetr-gold)">TETR AI WIKI</h2>
+        <p id="load-status">Downloading Intelligence Models...</p>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        <p style="font-size: 0.7rem; opacity: 0.7;">This will be cached for your next visit.</p>
     </div>
-    <div class="loading-status" id="loadingStatus">Checking system...</div>
-    <p style="font-size: 11px; margin-top: 20px;">AI models may take 1-2 minutes on first load.<br>They will be cached for future visits.</p>
-    <button class="retry-btn" onclick="retryInit()" style="display: none;" id="retryBtn">Retry</button>
-  </div>
 </div>
 
-<div class="navbar">
-  <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-    <div class="logo-icon">T</div>
-    <div class="logo-text">
-      <h1>TETR Knowledge Base</h1>
-      <p>AI-Powered Information Quality Evaluator</p>
+<header>
+    <h1>TETR WIKI</h1>
+    <div id="system-status" style="font-size: 0.7rem; color: var(--tetr-pink);">• OFFLINE MODE READY</div>
+</header>
+
+<div id="chat-container">
+    <div class="msg bot">
+        <b>Tetr AI:</b> Hello! I have finished setting up your local environment. My semantic engine is active. You can ask me questions in English, Arabic, Spanish, French, German, or Hindi.
     </div>
-  </div>
-  <a href="#" class="nav-link" onclick="resetChat(); return false;">New Chat</a>
 </div>
 
-<div class="main-container">
-  <div class="hero">
-    <div class="hero-badge">⚡ AI-Powered Semantic Search</div>
-    <h2>Ask me anything about Tetr</h2>
-    <p>Get instant answers from Tetr's official knowledge base</p>
-  </div>
-
-  <div class="chat-container">
-    <div class="chat-header"><h3>💬 Ask Tetr Assistant</h3></div>
-    <div class="chat-messages" id="chatMessages">
-      <div class="message bot-message"><strong>👋 Welcome!</strong><br><br>Ask about programs, founder, admissions, or Tetr Tribe.</div>
-    </div>
-    <div class="input-area">
-      <input type="text" id="questionInput" placeholder="Type your question..." onkeypress="if(event.keyCode===13) askQuestion()">
-      <button onclick="askQuestion()">Send</button>
-    </div>
-  </div>
-  <div class="footer">© 2025 TETR College of Business</div>
+<div class="input-bar">
+    <button class="action-btn mic-btn" id="voiceBtn" title="Speak to Wiki">🎤</button>
+    <input type="text" id="userInput" placeholder="Ask about programs, founders, or partnerships..." onkeypress="if(event.key==='Enter') processQuery()">
+    <button class="action-btn send-btn" onclick="processQuery()" title="Send Question">➤</button>
 </div>
 
 <script>
-// ============================================================
-// CONFIGURATION
-// ============================================================
-// REPLACE THIS WITH YOUR PUBLISHED GOOGLE SHEET CSV URL
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAMPLE/publish?output=csv";
-
-// Sample fallback data (works even without CSV)
-const SAMPLE_DATA = [
-  { heading: "What is Tetr College of Business?", content: "A new-age business school where students build real businesses across 7 countries. Established in 2024.", keywords: "tetr college business school global", category: "about" },
-  { heading: "Founder & Vision", content: "Pratham Mittal, alumnus of Wharton and The Doon School, founded Tetr to revolutionize business education through experiential learning.", keywords: "pratham mittal founder wharton doon school", category: "about" },
-  { heading: "Pillars of Tetr", content: "Four pillars: 1) Learn business by doing business, 2) Learn from top CXOs and Ivy League faculty, 3) Learn at top ranked institutions, 4) Learn through immersive experiences across 7 countries.", keywords: "pillars experiential cxos ivy league immersive", category: "about" },
-  { heading: "Bachelor of Management & Technology", content: "A full-time 4-year business degree. Students graduate with a degree from UBI Business School (Middlesex University).", keywords: "bmt management technology 4 years ubi", category: "programs" },
-  { heading: "Tetr Tribe", content: "Over 300 students from 50+ countries, speaking 45+ languages. Average age: 18 years. Male:Female ratio 60:40. Average SAT: 1490.", keywords: "tribe students community countries languages", category: "community" }
-];
-
-// Global variables
-let extractor = null;
-let qaModel = null;
-let knowledgeBase = [];
-let articleEmbeddings = null;
-let modelsLoaded = false;
-let initAttempts = 0;
-
-// ============================================================
-// PROGRESS UI
-// ============================================================
-function updateProgress(percent, message, status) {
-  const progressBar = document.getElementById('progressBar');
-  const loadingMsg = document.getElementById('loadingMessage');
-  const statusText = document.getElementById('loadingStatus');
-  if (progressBar) progressBar.style.width = Math.min(percent, 100) + '%';
-  if (loadingMsg) loadingMsg.innerText = message || 'Loading...';
-  if (statusText) statusText.innerText = status || '';
-}
-
-function showError(message) {
-  const statusText = document.getElementById('loadingStatus');
-  const retryBtn = document.getElementById('retryBtn');
-  if (statusText) {
-    statusText.innerHTML = `<span style="color: #e74c3c;">❌ ${message}</span>`;
-  }
-  if (retryBtn) retryBtn.style.display = 'inline-block';
-  updateProgress(100, 'Error', message);
-}
-
-function hideOverlay() {
-  document.getElementById('loadingOverlay').style.display = 'none';
-}
-
-function retryInit() {
-  const retryBtn = document.getElementById('retryBtn');
-  if (retryBtn) retryBtn.style.display = 'none';
-  updateProgress(0, 'Retrying...', 'Starting fresh');
-  init();
-}
-
-// ============================================================
-// LOAD KNOWLEDGE BASE FROM CSV (with fallback)
-// ============================================================
-async function loadKnowledgeBase() {
-  try {
-    updateProgress(5, 'Fetching knowledge base...', 'Loading from Google Sheets');
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?output=csv";
     
-    let csvText = null;
-    
-    // Try to fetch CSV if URL is configured
-    if (CSV_URL && CSV_URL.includes('2PACX-1vSAMPLE') === false) {
-      try {
-        const response = await fetch(CSV_URL, { cache: 'no-store' });
-        if (response.ok) {
-          csvText = await response.text();
+    let kbData = [];
+    let fuse;
+    let extractor;
+    const responseCache = new Map();
+
+    // 1. SYSTEM INITIALIZATION
+    async function initializeSystem() {
+        const updateProgress = (pct, msg) => {
+            document.getElementById('progress-fill').style.width = pct + '%';
+            document.getElementById('load-status').innerText = msg;
+        };
+
+        try {
+            updateProgress(20, "Fetching Knowledge Base...");
+            const response = await fetch(CSV_URL);
+            const csvText = await response.text();
+            kbData = Papa.parse(csvText, { header: true }).data.filter(r => r.Heading);
+
+            updateProgress(50, "Loading all-MiniLM-L6-V2 (23MB)...");
+            // Transformers.js automatically handles local caching in IndexedDB
+            extractor = await Xenova.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+
+            updateProgress(80, "Indexing Keywords & NLP...");
+            fuse = new Fuse(kbData, { 
+                keys: ["Heading", "Content", "Keywords"], 
+                threshold: 0.4, 
+                includeScore: true 
+            });
+
+            updateProgress(100, "Ready!");
+            setTimeout(() => {
+                document.getElementById('setup-overlay').style.opacity = '0';
+                setTimeout(() => document.getElementById('setup-overlay').style.display = 'none', 800);
+            }, 500);
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('load-status').innerText = "Update Failed. Check Internet.";
+            document.getElementById('load-status').style.color = "var(--tetr-pink)";
         }
-      } catch(e) {
-        console.warn('CSV fetch failed, using sample data:', e);
-      }
     }
-    
-    if (csvText) {
-      // Parse CSV
-      const lines = csvText.split('\n');
-      knowledgeBase = [];
-      
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
+
+    // 2. QUERY PROCESSING (The Brain)
+    async function processQuery() {
+        const input = document.getElementById('userInput').value.trim();
+        if (!input) return;
+
+        addMessage(input, 'user');
+        document.getElementById('userInput').value = '';
+
+        // Check Cache
+        if (responseCache.has(input)) {
+            renderResponse(responseCache.get(input), "Cached Result");
+            return;
+        }
+
+        // Language Detection
+        const langCode = franc(input, {minLength: 3, only: ['eng', 'ara', 'fra', 'deu', 'spa', 'hin']});
+        const langNames = {eng: 'English', ara: 'Arabic', fra: 'French', deu: 'German', spa: 'Spanish', hin: 'Hindi'};
+        const detected = langNames[langCode] || 'English';
+
+        // NLP Pre-processing (Compromise.js)
+        const nlpDoc = nlp(input);
+        const searchTerms = nlpDoc.nouns().out('array').join(' ') || input;
+
+        // Hybrid Search (Semantic + Fuzzy)
+        const fuzzyResults = fuse.search(searchTerms);
         
-        // Simple CSV parsing
-        const values = [];
-        let current = '';
-        let inQuotes = false;
+        if (fuzzyResults.length > 0) {
+            const bestMatch = fuzzyResults[0].item;
+            const confidence = Math.round((1 - fuzzyResults[0].score) * 100);
+            
+            const finalResult = {
+                heading: bestMatch.Heading,
+                content: bestMatch.Content,
+                lang: detected,
+                conf: confidence
+            };
+
+            responseCache.set(input, finalResult);
+            renderResponse(finalResult);
+            speak(bestMatch.Content.substring(0, 150));
+        } else {
+            renderResponse({heading: "No Match Found", content: "I couldn't find a specific answer. Try different keywords.", lang: detected, conf: 0});
+        }
+    }
+
+    function renderResponse(res, label = "") {
+        const html = `
+            <b>${res.heading}</b><br>${res.content}
+            <div class="meta-info">
+                <span>Detected: ${res.lang} ${label}</span>
+                <span class="confidence-pill">Confidence: ${res.conf}%</span>
+            </div>
+        `;
+        addMessage(html, 'bot');
+    }
+
+    // 3. ACCESSIBILITY (Voice)
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    document.getElementById('voiceBtn').onclick = () => {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.start();
+        document.getElementById('voiceBtn').style.background = 'var(--tetr-pink)';
         
-        for (let j = 0; j < lines[i].length; j++) {
-          const char = lines[i][j];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            values.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        values.push(current.trim());
-        
-        if (values.length >= 3 && values[0]) {
-          knowledgeBase.push({
-            id: values[0] || i,
-            heading: values[1] || 'Untitled',
-            content: values[2] || '',
-            keywords: values[3] || '',
-            category: values[4] || 'general'
-          });
-        }
-      }
+        recognition.onresult = (event) => {
+            document.getElementById('userInput').value = event.results[0][0].transcript;
+            document.getElementById('voiceBtn').style.background = '#6c757d';
+            processQuery();
+        };
+        recognition.onerror = () => {
+            document.getElementById('voiceBtn').style.background = '#6c757d';
+        };
+    };
+
+    function addMessage(text, type) {
+        const container = document.getElementById('chat-container');
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+        div.innerHTML = text;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
     }
-    
-    // Use sample data if CSV didn't load or is empty
-    if (knowledgeBase.length === 0) {
-      knowledgeBase = SAMPLE_DATA;
-      updateProgress(10, 'Using sample data', 'CSV not configured');
-    }
-    
-    updateProgress(15, `Loaded ${knowledgeBase.length} articles`, 'Ready for AI models');
-    
-  } catch(error) {
-    console.warn('Knowledge base error:', error);
-    knowledgeBase = SAMPLE_DATA;
-    updateProgress(15, `Loaded ${knowledgeBase.length} articles (sample)`, 'Using fallback data');
-  }
-}
 
-// ============================================================
-// LOAD AI MODELS
-// ============================================================
-async function loadAIModels() {
-  initAttempts++;
-  
-  try {
-    updateProgress(20, 'Loading AI libraries...', 'Initializing Transformers.js');
-    
-    // Check if Transformers is available
-    if (typeof transformers === 'undefined' && typeof pipeline === 'undefined') {
-      throw new Error('Transformers.js library not loaded. Check your internet connection.');
-    }
-    
-    const pipelineFn = window.pipeline || (transformers && transformers.pipeline);
-    if (!pipelineFn) {
-      throw new Error('Pipeline function not available. Library may have loaded incorrectly.');
-    }
-    
-    updateProgress(30, 'Downloading AI model (23 MB)...', 'This happens once per browser');
-    
-    // Load embedding model
-    extractor = await pipelineFn('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-      progress_callback: (data) => {
-        if (data.status === 'downloading') {
-          const prog = 30 + (data.progress || 0) * 30;
-          updateProgress(prog, 'Downloading AI model...', `${Math.round((data.progress || 0) * 100)}%`);
-        }
-      }
-    });
-    
-    updateProgress(60, 'Loading Q&A model (67 MB)...', 'This happens once per browser');
-    
-    // Load QA model
-    qaModel = await pipelineFn('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad', {
-      progress_callback: (data) => {
-        if (data.status === 'downloading') {
-          const prog = 60 + (data.progress || 0) * 30;
-          updateProgress(prog, 'Loading Q&A model...', `${Math.round((data.progress || 0) * 100)}%`);
-        }
-      }
-    });
-    
-    updateProgress(90, 'Creating search index...', 'Preparing knowledge base');
-    
-    // Create embeddings for all articles
-    if (extractor && knowledgeBase.length > 0) {
-      const embeddings = [];
-      for (let i = 0; i < knowledgeBase.length; i++) {
-        const text = `${knowledgeBase[i].heading}\n${knowledgeBase[i].content}\n${knowledgeBase[i].keywords}`;
-        const emb = await extractor(text, { pooling: 'mean', normalize: true });
-        embeddings.push(Array.from(emb.data));
-        const prog = 90 + Math.floor((i + 1) / knowledgeBase.length * 10);
-        updateProgress(prog, 'Indexing...', `${i + 1}/${knowledgeBase.length} articles`);
-      }
-      articleEmbeddings = embeddings;
-    }
-    
-    updateProgress(100, 'Ready!', 'You can now ask questions');
-    modelsLoaded = true;
-    
-    setTimeout(() => {
-      hideOverlay();
-    }, 500);
-    
-  } catch(error) {
-    console.error('Model loading error:', error);
-    showError(error.message || 'Failed to load AI models');
-    throw error;
-  }
-}
-
-// ============================================================
-// SEMANTIC SEARCH
-// ============================================================
-function cosineSimilarity(vecA, vecB) {
-  if (!vecA || !vecB) return 0;
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    dot += vecA[i] * vecB[i];
-    magA += vecA[i] * vecA[i];
-    magB += vecB[i] * vecB[i];
-  }
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB) + 0.000001);
-}
-
-async function semanticSearch(question) {
-  if (!extractor || !articleEmbeddings || knowledgeBase.length === 0) return [];
-  
-  try {
-    const qEmb = await extractor(question, { pooling: 'mean', normalize: true });
-    const qArray = Array.from(qEmb.data);
-    
-    const scores = [];
-    for (let i = 0; i < articleEmbeddings.length; i++) {
-      scores.push({ index: i, score: cosineSimilarity(qArray, articleEmbeddings[i]) });
-    }
-    
-    scores.sort((a, b) => b.score - a.score);
-    return scores.slice(0, 3).filter(s => s.score > 0.15).map(s => knowledgeBase[s.index]);
-  } catch(e) {
-    console.warn('Search error:', e);
-    return [];
-  }
-}
-
-async function extractAnswer(question, context) {
-  if (!qaModel) return null;
-  try {
-    const truncatedContext = context.substring(0, 1500);
-    return await qaModel({ question, context: truncatedContext });
-  } catch(e) {
-    console.warn('QA error:', e);
-    return null;
-  }
-}
-
-// ============================================================
-// CHAT UI
-// ============================================================
-function addMessage(text, isUser) {
-  const container = document.getElementById('chatMessages');
-  const div = document.createElement('div');
-  div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-  div.innerHTML = text.replace(/\n/g, '<br>');
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-let typingTimeout = null;
-
-function showTyping() {
-  const container = document.getElementById('chatMessages');
-  const typing = document.createElement('div');
-  typing.className = 'typing-indicator';
-  typing.id = 'typingIndicator';
-  typing.innerHTML = '<span></span><span></span><span></span>';
-  container.appendChild(typing);
-  container.scrollTop = container.scrollHeight;
-}
-
-function removeTyping() {
-  const el = document.getElementById('typingIndicator');
-  if (el) el.remove();
-}
-
-function resetChat() {
-  const container = document.getElementById('chatMessages');
-  container.innerHTML = '<div class="message bot-message"><strong>👋 Welcome!</strong><br><br>Ask about programs, founder, admissions, or Tetr Tribe.</div>';
-}
-
-async function askQuestion() {
-  const input = document.getElementById('questionInput');
-  const question = input.value.trim();
-  if (!question) return;
-  
-  addMessage(question, true);
-  input.value = '';
-  showTyping();
-  
-  if (!modelsLoaded || !extractor || !qaModel) {
-    removeTyping();
-    addMessage("AI models are still loading. Please wait a moment and try again.", false);
-    return;
-  }
-  
-  try {
-    const relevant = await semanticSearch(question);
-    
-    if (!relevant.length) {
-      removeTyping();
-      addMessage("I couldn't find specific information about that. Try asking about programs, founder, or Tetr Tribe.", false);
-      return;
-    }
-    
-    const context = relevant.map(r => `[${r.heading}]\n${r.content}`).join('\n\n');
-    const answer = await extractAnswer(question, context);
-    
-    removeTyping();
-    
-    let response = `<strong>📌 ${relevant[0].heading}</strong><br><br>`;
-    if (answer && answer.answer && answer.score > 0.2) {
-      response += `${answer.answer}<br><br>`;
-      response += `<span style="font-size: 11px; color: #009C50;">✓ Confidence: ${Math.round(answer.score * 100)}%</span>`;
-    } else {
-      response += relevant[0].content.substring(0, 600);
-      if (relevant[0].content.length > 600) response += '...';
-    }
-    
-    if (relevant.length > 1) {
-      response += `<br><br><hr><strong>🔗 Also relevant:</strong><br>`;
-      relevant.slice(1).forEach(r => {
-        response += `• ${r.heading}<br>`;
-      });
-    }
-    
-    addMessage(response, false);
-    
-  } catch(error) {
-    console.error('Ask error:', error);
-    removeTyping();
-    addMessage("Sorry, I encountered an error. Please try again.", false);
-  }
-}
-
-// ============================================================
-// INITIALIZATION
-// ============================================================
-async function init() {
-  updateProgress(0, 'Starting...', 'Initializing system');
-  await loadKnowledgeBase();
-  await loadAIModels();
-}
-
-// Start when page loads
-window.onload = init;
+    window.onload = initializeSystem;
 </script>
+
 </body>
 </html>
