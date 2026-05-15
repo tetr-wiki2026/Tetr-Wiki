@@ -2,19 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TETR WIKI</title>
+    <title>TETR WIKI - Optimized</title>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
     <style>
         :root { --dark-green: #004822; --light-green: #009C50; --white: #FFFFFF; }
         body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         header { background: var(--dark-green); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light-green); }
         #user-welcome { color: var(--white); font-weight: 500; }
+        #confidence-badge { font-size: 0.7rem; margin-left: 10px; opacity: 0.8; }
 
-        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; }
         .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--light-green); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        #progress-text { font-size: 0.8rem; margin-top: 10px; opacity: 0.8; }
 
         #chat-window { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
         .msg { max-width: 80%; padding: 18px 22px; border-radius: 15px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
@@ -22,27 +23,37 @@
         .user { background: var(--dark-green); color: var(--white); align-self: flex-end; }
         
         .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 16px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .confidence-bar { height: 3px; background: #e0e0e0; margin-top: 8px; border-radius: 3px; overflow: hidden; }
+        .confidence-fill { height: 100%; background: var(--light-green); transition: width 0.3s; }
         
         .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; align-items: center; }
-        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; }
+        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; font-size: 1rem; }
+        input:focus { border-color: var(--light-green); }
         
-        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; }
+        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .mic-active { background: #ff4b2b; color: white; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         
-        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 50px; border-radius: 30px; cursor: pointer; font-weight: 700; }
+        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 50px; border-radius: 30px; cursor: pointer; font-weight: 700; transition: background 0.2s; }
+        .send-btn:hover { background: var(--light-green); }
+        
+        @media (max-width: 768px) {
+            .msg { max-width: 95%; }
+            .dock { padding: 15px; }
+        }
     </style>
 </head>
 <body>
 
 <div id="loader">
     <div class="spinner"></div>
-    <h2 style="margin-top:20px;">TETR WIKI</h2>
-    <p id="status">Scanning Columns B, C, D, and E...</p>
+    <h2 style="margin-top:20px;">TETR INTELLIGENCE</h2>
+    <p id="status">Loading knowledge base...</p>
+    <div id="progress-text"></div>
 </div>
 
 <header>
-    <span style="font-weight: 700;">TETR WIKI</span>
+    <span style="font-weight: 700;">⚡ TETR WIKI v6.0</span>
     <span id="user-welcome">Welcome @user</span>
 </header>
 
@@ -50,54 +61,125 @@
 
 <div class="dock">
     <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎤</button>
-    <input type="text" id="userInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') searchFullSemantic()">
-    <button class="send-btn" onclick="searchFullSemantic()">SEARCH</button>
+    <input type="text" id="userInput" placeholder="Ask about programs, admission, founders..." onkeypress="if(event.key==='Enter') searchFullSemantic()">
+    <button class="send-btn" onclick="searchFullSemantic()">ASK</button>
 </div>
 
 <script type="module">
     import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Salj0Qpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
     let db = [];
     let embedder;
     let recognition;
     let isListening = false;
-
+    let cachedEmbeddings = new Map(); // Cache for row embeddings
+    let responseCache = new Map(); // Cache for Q&A pairs
+    let columnMap = { heading: null, content: null, keywords: null, category: null };
+    
     async function init() {
         try {
-            const userEmail = "admin@tetr.edu"; 
-            document.getElementById('user-welcome').innerText = `Welcome @${userEmail.split('@')[0]}`;
-
-            const res = await fetch(CSV_URL + "&v=" + Date.now());
+            document.getElementById('progress-text').innerText = "Fetching CSV from Google Sheets...";
+            
+            // Load CSV with cache-busting
+            const res = await fetch(CSV_URL + "&_t=" + Date.now());
             const text = await res.text();
             
-            // PapaParse maps columns to object keys based on the first row (headers)
-            db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
-
+            document.getElementById('progress-text').innerText = "Parsing CSV data...";
+            const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+            db = parsed.data;
+            
+            // Filter empty rows
+            db = db.filter(row => Object.values(row).some(v => v && v.trim()));
+            document.getElementById('progress-text').innerText = `Loaded ${db.length} records. Detecting columns...`;
+            
+            // Auto-detect column names (case insensitive)
+            if (db.length > 0) {
+                const cols = Object.keys(db[0]);
+                columnMap.heading = cols.find(c => c.toLowerCase().includes('head') || c.toLowerCase().includes('title')) || cols[0];
+                columnMap.content = cols.find(c => c.toLowerCase().includes('content') || c.toLowerCase().includes('desc')) || cols[1];
+                columnMap.keywords = cols.find(c => c.toLowerCase().includes('keyword') || c.toLowerCase().includes('tag')) || null;
+                columnMap.category = cols.find(c => c.toLowerCase().includes('category') || c.toLowerCase().includes('cat')) || null;
+                
+                document.getElementById('progress-text').innerHTML = `✅ Columns: ${cols.join(', ')}<br>📚 Using: "${columnMap.heading}" → "${columnMap.content}"`;
+            }
+            
+            document.getElementById('progress-text').innerHTML += "<br>🤖 Loading AI model (23MB)...";
             embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-
+            
+            // Pre-compute embeddings for all rows (parallel processing)
+            document.getElementById('progress-text').innerHTML += "<br>🧠 Pre-computing embeddings for faster responses...";
+            await precomputeEmbeddings();
+            
+            // Setup speech recognition
             const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechAPI) {
                 recognition = new SpeechAPI();
+                recognition.continuous = false;
+                recognition.interimResults = false;
                 recognition.onresult = (e) => {
                     document.getElementById('userInput').value = e.results[0][0].transcript;
                     if(isListening) toggleVoice();
                     searchFullSemantic();
                 };
+                recognition.onerror = () => { if(isListening) toggleVoice(); };
             }
 
             document.getElementById('loader').style.display = 'none';
-            addMsg("<b>Tetr Wiki:</b> I have indexed all sheet columns. Please ask your questions.", "bot");
+            addMsg(`✅ <b>TETR Wiki Ready</b><br>📚 ${db.length} knowledge entries loaded<br>💡 Try asking about ${db[0][columnMap.heading] || "our programs"}`, "bot");
         } catch (e) {
-            document.getElementById('status').innerText = "Sync Error: Check Columns B-E headers.";
+            console.error(e);
+            document.getElementById('status').innerText = "Sync Error: " + e.message;
+            document.getElementById('progress-text').innerText = "Please refresh or check CSV URL";
         }
     }
-
-    function cosineSimilarity(a, b) {
-        return a.reduce((sum, val, i) => sum + val * b[i], 0);
+    
+    async function precomputeEmbeddings() {
+        const batchSize = 10;
+        const batches = [];
+        
+        for (let i = 0; i < db.length; i += batchSize) {
+            batches.push(db.slice(i, i + batchSize));
+        }
+        
+        let processed = 0;
+        for (const batch of batches) {
+            const texts = batch.map(row => {
+                // Combine all relevant columns for richer embeddings
+                const parts = [
+                    row[columnMap.heading] || "",
+                    row[columnMap.content] || "",
+                    row[columnMap.keywords] || "",
+                    row[columnMap.category] || ""
+                ];
+                return parts.filter(p => p).join(" ");
+            });
+            
+            const embeddings = await Promise.all(texts.map(t => 
+                embedder(t, { pooling: 'mean', normalize: true })
+            ));
+            
+            batch.forEach((row, idx) => {
+                cachedEmbeddings.set(row, embeddings[idx].data);
+            });
+            
+            processed += batch.length;
+            document.getElementById('progress-text').innerHTML = `🧠 Pre-computing: ${processed}/${db.length} embeddings...`;
+        }
     }
-
+    
+    function cosineSimilarity(a, b) {
+        if (!a || !b) return 0;
+        let dot = 0, magA = 0, magB = 0;
+        for (let i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            magA += a[i] * a[i];
+            magB += b[i] * b[i];
+        }
+        return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+    }
+    
     window.searchFullSemantic = async function() {
         const input = document.getElementById('userInput');
         const query = input.value.trim();
@@ -105,49 +187,88 @@
 
         addMsg(query, 'user');
         input.value = '';
-
+        
+        // Check response cache
+        if (responseCache.has(query)) {
+            const cached = responseCache.get(query);
+            addMsg(cached.html, 'bot');
+            return;
+        }
+        
         const qOutput = await embedder(query, { pooling: 'mean', normalize: true });
         const qVector = Array.from(qOutput.data);
-
+        
         let bestMatch = null;
         let maxSim = -1;
-
+        
+        // Use cached embeddings for fast comparison
         for (let row of db) {
-            // CRITICAL FIX: Merging all relevant columns for the AI to "read"
-            // We use Object.values to capture all columns (B, C, D, E, etc.)
-            const rowContext = Object.values(row).join(" ");
+            const rowVector = cachedEmbeddings.get(row);
+            if (!rowVector) continue;
             
-            const rOutput = await embedder(rowContext, { pooling: 'mean', normalize: true });
-            const rVector = Array.from(rOutput.data);
-            
-            const sim = cosineSimilarity(qVector, rVector);
+            const sim = cosineSimilarity(qVector, rowVector);
             if (sim > maxSim) {
                 maxSim = sim;
                 bestMatch = row;
             }
         }
-
-        if (bestMatch && maxSim > 0.40) {
-            // Displaying Heading (B) and Content (C)
-            // But the search logic above used D and E to find this!
+        
+        const confidence = Math.round(maxSim * 100);
+        const threshold = 0.35; // Minimum 35% similarity
+        
+        if (bestMatch && maxSim > threshold) {
+            const heading = bestMatch[columnMap.heading] || "Information";
+            const content = bestMatch[columnMap.content] || "No detailed content";
+            const keywords = columnMap.keywords ? bestMatch[columnMap.keywords] : null;
+            
+            // Confidence color coding
+            const confidenceColor = confidence > 70 ? 'var(--light-green)' : (confidence > 50 ? '#f0a500' : '#ff6b6b');
+            
             const html = `
-                <b style="color:var(--dark-green)">${Object.values(bestMatch)[0]}</b><br>${Object.values(bestMatch)[1]}
-                <br><button class="listen-btn" onclick="speak(\`${Object.values(bestMatch)[1].replace(/'/g, "\\'")}\`)">Listen to Answer</button>
+                <div>
+                    <b style="color:var(--dark-green); font-size:1.1rem;">📘 ${heading}</b>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${confidence}%; background: ${confidenceColor};"></div>
+                    </div>
+                    <div style="font-size:0.7rem; margin: 5px 0;">🔍 Match confidence: ${confidence}%</div>
+                    <div style="margin-top: 12px;">${content}</div>
+                    ${keywords ? `<div style="margin-top: 8px; font-size:0.8rem; opacity:0.7;">🔑 ${keywords}</div>` : ''}
+                    <button class="listen-btn" onclick="speakText(\`${content.replace(/'/g, "\\'").replace(/"/g, '&quot;')}\`)">🔊 Listen to Answer</button>
+                </div>
             `;
+            
+            // Cache the response
+            responseCache.set(query, { html });
+            
             addMsg(html, 'bot');
         } else {
-            addMsg("I couldn't find a confident match across all columns. Try rephrasing.", "bot");
+            addMsg(`❌ I couldn't find a confident match (best was ${confidence}% similar). Please try different keywords or ask about a different topic.`, "bot");
         }
     }
-
-    // ... (Voice and Messaging functions remain same as previous version)
+    
     window.toggleVoice = () => {
-        if(!recognition) return alert("Speech recognition not supported.");
+        if(!recognition) return alert("Speech recognition not supported in this browser.");
         const btn = document.getElementById('micBtn');
-        if(isListening) { recognition.stop(); isListening = false; btn.classList.remove('mic-active'); }
-        else { recognition.start(); isListening = true; btn.classList.add('mic-active'); }
+        if(isListening) { 
+            recognition.stop(); 
+            isListening = false; 
+            btn.classList.remove('mic-active');
+            btn.innerText = '🎤';
+        } else { 
+            recognition.start(); 
+            isListening = true; 
+            btn.classList.add('mic-active');
+            btn.innerText = '🎙️';
+        }
     };
-    window.speak = (t) => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(t.substring(0, 500))); };
+    
+    window.speakText = (text) => { 
+        window.speechSynthesis.cancel(); 
+        const utterance = new SpeechSynthesisUtterance(text.substring(0, 500));
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    };
+    
     function addMsg(t, c) {
         const win = document.getElementById('chat-window');
         const d = document.createElement('div');
@@ -156,6 +277,7 @@
         win.appendChild(d);
         win.scrollTop = win.scrollHeight;
     }
+    
     init();
 </script>
 </body>
