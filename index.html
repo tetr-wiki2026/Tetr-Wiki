@@ -4,57 +4,33 @@
     <meta charset="UTF-8">
     <title>TETR WIKI</title>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script type="importmap">
-        {
-            "imports": {
-                "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"
-            }
-        }
-    </script>
     <style>
         :root { --dark-green: #004822; --light-green: #009C50; --white: #FFFFFF; }
         body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
         header { background: var(--dark-green); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light-green); }
         #user-welcome { color: var(--white); font-weight: 500; }
-
-        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--light-green); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-
         #chat-window { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
         .msg { max-width: 80%; padding: 18px 22px; border-radius: 15px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .bot { background: var(--white); color: #333; align-self: flex-start; border-left: 6px solid var(--light-green); }
         .user { background: var(--dark-green); color: var(--white); align-self: flex-end; }
-        
         .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 16px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        .confidence-bar { height: 3px; background: #e0e0e0; margin-top: 8px; border-radius: 3px; overflow: hidden; }
-        .confidence-fill { height: 100%; background: var(--light-green); transition: width 0.3s; }
-        
         .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; align-items: center; }
-        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; font-size: 1rem; }
-        input:focus { border-color: var(--light-green); }
-        
-        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; }
+        .mic-btn { background: #f0f0f0; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; }
         .mic-active { background: #ff4b2b; color: white; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        
-        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 50px; border-radius: 30px; cursor: pointer; font-weight: 700; transition: background 0.2s; }
-        .send-btn:hover { background: var(--light-green); }
-        
-        @media (max-width: 768px) {
-            .msg { max-width: 95%; }
-            .dock { padding: 15px; }
-        }
+        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 50px; border-radius: 30px; cursor: pointer; font-weight: 700; }
     </style>
 </head>
 <body>
 
 <div id="loader">
     <div class="spinner"></div>
-    <h2 style="margin-top:20px;">⚡ TETR WIKI</h2>
-    <p id="status">Scanning Columns Heading, Content, Keywords, Category...</p>
-    <p id="progress-detail" style="font-size:0.8rem; margin-top:10px; opacity:0.8;"></p>
+    <h2 style="margin-top:20px;">TETR AI INITIALIZING</h2>
+    <p id="status">Connecting to Knowledge Base...</p>
 </div>
 
 <header>
@@ -66,230 +42,122 @@
 
 <div class="dock">
     <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎤</button>
-    <input type="text" id="userInput" placeholder="Ask me anything about Tetr programs, admission, policies..." onkeypress="if(event.key==='Enter') searchFullSemantic()">
-    <button class="send-btn" onclick="searchFullSemantic()">ASK</button>
+    <input type="text" id="userInput" placeholder="Ask about programs, fees, or founder..." onkeypress="if(event.key==='Enter') searchSemantic()">
+    <button class="send-btn" onclick="searchSemantic()">SEARCH</button>
 </div>
 
 <script type="module">
     import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Salj0Qpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
+    // MAKE SURE THIS LINK ENDS IN output=csv
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
     let db = [];
-    let embedder = null;
-    let recognition = null;
+    let embedder;
+    let recognition;
     let isListening = false;
-    let rowEmbeddings = new Map(); // Cache for row embeddings
-    let responseCache = new Map(); // Cache for Q&A pairs
-    
-    // Column names from your sheet: A1=ID, B1=Heading, C1=Content, D1=Keywords, E1=Category
-    const COL_ID = 'ID';
-    const COL_HEADING = 'Heading';
-    const COL_CONTENT = 'Content';
-    const COL_KEYWORDS = 'Keywords';
-    const COL_CATEGORY = 'Category';
-    
+
     async function init() {
+        const status = document.getElementById('status');
         try {
-            const userEmail = "student@tetr.edu";
-            document.getElementById('user-welcome').innerText = `Welcome @${userEmail.split('@')[0]}`;
+            // 1. Validate Spreadsheet Data first
+            status.innerText = "Downloading Spreadsheet...";
+            const res = await fetch(CSV_URL + "&v=" + Date.now());
+            if (!res.ok) throw new Error("Spreadsheet Link Rejected (404/400). Please check CSV Publish settings.");
             
-            document.getElementById('progress-detail').innerText = "Downloading CSV from Google Sheets...";
-            
-            // Your original working CSV fetch style with cache-busting
-            const res = await fetch(CSV_URL + "?v=" + Date.now());
             const text = await res.text();
-            
-            document.getElementById('progress-detail').innerText = "Parsing CSV data...";
-            
-            // Your original working PapaParse method
             db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
-            
-            // Filter out completely empty rows
-            db = db.filter(row => {
-                return row[COL_HEADING] || row[COL_CONTENT] || row[COL_KEYWORDS];
-            });
-            
-            document.getElementById('progress-detail').innerText = `Loaded ${db.length} records. Loading AI Model (23MB)...`;
-            
-            // Load the AI model
+            if (db.length === 0) throw new Error("Spreadsheet is empty.");
+
+            // 2. Load AI Model
+            status.innerText = "Loading AI Semantic Brain (MiniLM)...";
             embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-            
-            document.getElementById('progress-detail').innerText = `Pre-computing embeddings for ${db.length} records...`;
-            
-            // Pre-compute embeddings for all rows (like your original but optimized)
-            for (let i = 0; i < db.length; i++) {
-                const row = db[i];
-                // Combine all relevant columns for richer meaning
-                const rowContext = [
-                    row[COL_HEADING] || "",
-                    row[COL_CONTENT] || "",
-                    row[COL_KEYWORDS] || "",
-                    row[COL_CATEGORY] || ""
-                ].filter(text => text).join(" ");
-                
-                const embedding = await embedder(rowContext, { pooling: 'mean', normalize: true });
-                rowEmbeddings.set(row, Array.from(embedding.data));
-                
-                if ((i + 1) % 10 === 0) {
-                    document.getElementById('progress-detail').innerText = `Pre-computing: ${i + 1}/${db.length}...`;
-                }
-            }
-            
-            // Setup speech recognition (your original style)
+
+            // 3. Setup Voice
             const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
             if(SpeechAPI) {
                 recognition = new SpeechAPI();
-                recognition.continuous = false;
-                recognition.interimResults = false;
                 recognition.onresult = (e) => {
                     document.getElementById('userInput').value = e.results[0][0].transcript;
                     if(isListening) toggleVoice();
-                    searchFullSemantic();
-                };
-                recognition.onerror = () => {
-                    if(isListening) toggleVoice();
+                    searchSemantic();
                 };
             }
-            
+
             document.getElementById('loader').style.display = 'none';
-            addMsg(`✅ <b>Tetr Wiki AI is ready!</b><br>📚 Indexed ${db.length} knowledge entries.<br>💡 Ask me about any topic in the database.`, "bot");
-            
-        } catch (error) {
-            console.error("Init error:", error);
-            document.getElementById('status').innerText = "Sync Error: " + error.message;
-            document.getElementById('progress-detail').innerText = "Please check console for details. Refresh to try again.";
+            addMsg("<b>Tetr Wiki:</b> Knowledge Base Loaded. I can now understand columns B, C, D, and E semantically.", "bot");
+        } catch (e) {
+            status.innerHTML = `<span style="color:#ff4b2b">ERROR: ${e.message}</span><br>Ensure Sheet is published as CSV.`;
+            console.error(e);
         }
     }
-    
-    function cosineSimilarity(vecA, vecB) {
-        if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
-        let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
-        for (let i = 0; i < vecA.length; i++) {
-            dotProduct += vecA[i] * vecB[i];
-            normA += vecA[i] * vecA[i];
-            normB += vecB[i] * vecB[i];
-        }
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+
+    function cosineSimilarity(a, b) {
+        return a.reduce((sum, val, i) => sum + val * b[i], 0);
     }
-    
-    window.searchFullSemantic = async function() {
+
+    window.searchSemantic = async function() {
         const input = document.getElementById('userInput');
         const query = input.value.trim();
-        if(!query) return;
-        
+        if(!query || !embedder) return;
+
         addMsg(query, 'user');
         input.value = '';
-        
-        if (!embedder) {
-            addMsg("⚠️ AI model still loading. Please wait a moment...", "bot");
-            return;
-        }
-        
-        // Check response cache first
-        if (responseCache.has(query)) {
-            const cached = responseCache.get(query);
-            addMsg(cached, 'bot');
-            return;
-        }
-        
-        try {
-            // Convert question to embedding
-            const qOutput = await embedder(query, { pooling: 'mean', normalize: true });
-            const qVector = Array.from(qOutput.data);
+
+        const qOutput = await embedder(query, { pooling: 'mean', normalize: true });
+        const qVector = Array.from(qOutput.data);
+
+        let bestMatch = null;
+        let maxSim = -1;
+
+        for (let row of db) {
+            // Merge all columns B, C, D, E for the search logic
+            const rowContext = Object.values(row).join(" ");
+            const rOutput = await embedder(rowContext, { pooling: 'mean', normalize: true });
+            const rVector = Array.from(rOutput.data);
             
-            let bestMatch = null;
-            let maxSim = -1;
-            
-            // Compare with all rows using cached embeddings
-            for (let row of db) {
-                const rowVector = rowEmbeddings.get(row);
-                if (!rowVector) continue;
-                
-                const sim = cosineSimilarity(qVector, rowVector);
-                if (sim > maxSim) {
-                    maxSim = sim;
-                    bestMatch = row;
-                }
+            const sim = cosineSimilarity(qVector, rVector);
+            if (sim > maxSim) {
+                maxSim = sim;
+                bestMatch = row;
             }
-            
-            const confidence = Math.round(maxSim * 100);
-            const threshold = 35; // 35% similarity minimum
-            
-            if (bestMatch && maxSim > (threshold / 100)) {
-                // Your original display format using the actual column names
-                const heading = bestMatch[COL_HEADING] || "Information";
-                const content = bestMatch[COL_CONTENT] || "No detailed content available";
-                const keywords = bestMatch[COL_KEYWORDS] || "";
-                const category = bestMatch[COL_CATEGORY] || "";
-                
-                // Color based on confidence
-                const barColor = confidence > 70 ? '#009C50' : (confidence > 50 ? '#f0a500' : '#ff6b6b');
-                
-                const html = `
-                    <div>
-                        <b style="color:var(--dark-green); font-size:1.1rem;">📘 ${heading}</b>
-                        <div class="confidence-bar">
-                            <div class="confidence-fill" style="width: ${confidence}%; background: ${barColor};"></div>
-                        </div>
-                        <div style="font-size:0.75rem; margin: 5px 0;">🎯 AI Confidence: ${confidence}%</div>
-                        <div style="margin-top: 12px;">${content}</div>
-                        ${keywords ? `<div style="margin-top: 8px; font-size:0.8rem; opacity:0.7;">🔑 Keywords: ${keywords}</div>` : ''}
-                        ${category ? `<div style="font-size:0.75rem; opacity:0.6; margin-top: 5px;">📁 Category: ${category}</div>` : ''}
-                        <button class="listen-btn" onclick="speakText(\`${content.replace(/'/g, "\\'").replace(/"/g, '&quot;')}\`)">🔊 Listen to Answer</button>
-                    </div>
-                `;
-                
-                // Cache the response
-                responseCache.set(query, html);
-                addMsg(html, 'bot');
-            } else {
-                addMsg(`❌ I couldn't find a confident match (${confidence}% similarity).<br><br>💡 Tips:<br>• Try different wording<br>• Use keywords from the database<br>• Check if the CSV loaded correctly (${db.length} records)`, "bot");
-            }
-        } catch (error) {
-            console.error("Search error:", error);
-            addMsg("❌ Search error: " + error.message, "bot");
+        }
+
+        if (bestMatch && maxSim > 0.35) {
+            // Use Index 0 for Heading (Col B) and Index 1 for Content (Col C)
+            const rowArr = Object.values(bestMatch);
+            const html = `
+                <b style="color:var(--dark-green)">${rowArr[0]}</b><br>${rowArr[1]}
+                <br><button class="listen-btn" onclick="speak(\`${rowArr[1].replace(/'/g, "\\'")}\`)">Listen to Answer</button>
+            `;
+            addMsg(html, 'bot');
+        } else {
+            addMsg("I couldn't find a confident semantic match. Please try different keywords.", "bot");
         }
     }
-    
+
     window.toggleVoice = () => {
-        if(!recognition) {
-            alert("Speech recognition not supported in this browser.");
-            return;
-        }
+        if(!recognition) return alert("Speech recognition not supported.");
         const btn = document.getElementById('micBtn');
-        if(isListening) {
-            recognition.stop();
-            isListening = false;
-            btn.classList.remove('mic-active');
-            btn.innerText = '🎤';
-        } else {
-            recognition.start();
-            isListening = true;
-            btn.classList.add('mic-active');
-            btn.innerText = '🎙️';
-        }
+        if(isListening) { recognition.stop(); isListening = false; btn.classList.remove('mic-active'); }
+        else { recognition.start(); isListening = true; btn.classList.add('mic-active'); }
     };
-    
-    window.speakText = (text) => {
+
+    window.speak = (t) => {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text.substring(0, 500));
-        utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(t.substring(0, 500)));
     };
-    
-    function addMsg(text, sender) {
+
+    function addMsg(t, c) {
         const win = document.getElementById('chat-window');
+        if(!win) return;
         const d = document.createElement('div');
-        d.className = `msg ${sender}`;
-        d.innerHTML = text;
+        d.className = `msg ${c}`;
+        d.innerHTML = t;
         win.appendChild(d);
         win.scrollTop = win.scrollHeight;
     }
-    
-    // Start everything
+
     init();
 </script>
 </body>
