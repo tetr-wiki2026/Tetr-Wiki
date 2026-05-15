@@ -32,20 +32,18 @@
 <div id="setup-overlay">
     <div class="loading-card">
         <h2 style="color: var(--tetr-gold)">TETR AI WIKI</h2>
-        <p id="load-status">Connecting to Neural Engine...</p>
+        <p id="load-status">Connecting to Knowledge Base...</p>
         <div class="progress-bar"><div id="progress-fill"></div></div>
-        <p style="font-size: 0.7rem; opacity: 0.8;">Caching Transformers (23MB) for offline use.</p>
+        <p style="font-size: 0.7rem; opacity: 0.8;">Syncing with Google Sheets...</p>
     </div>
 </div>
 
 <header>
     <h1 style="margin:0; font-size: 1.2rem; color: var(--tetr-gold);">TETR WIKI</h1>
-    <div style="font-size: 0.7rem; color: var(--tetr-pink);">• AI POWERED</div>
+    <div style="font-size: 0.7rem; color: var(--tetr-pink);">• SYSTEM LIVE</div>
 </header>
 
-<div id="chat-container">
-    <div class="msg bot"><b>Tetr AI:</b> Intelligence active. Ask me about programs, partners, or policies.</div>
-</div>
+<div id="chat-container"></div>
 
 <div class="input-bar">
     <input type="text" id="userInput" placeholder="Ask a question..." onkeypress="if(event.key==='Enter') window.processQuery()">
@@ -55,7 +53,9 @@
 <script type="module">
     import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
 
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?output=csv";
+    // 1. CLEANER CSV URL FORMAT
+    const SHEET_ID = "1TSbH7_0K0_v5n9hyIqgK3Q2O0OdeZngXPFZHcoMcGIc";
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
     
     let kbData = [];
     let fuse;
@@ -66,31 +66,43 @@
         const status = document.getElementById('load-status');
 
         try {
-            // Step 1: Data
-            status.innerText = "Downloading Knowledge Base...";
+            // STEP 1: DOWNLOAD DATA
+            status.innerText = "Downloading CSV Data...";
             bar.style.width = "30%";
-            const res = await fetch(CSV_URL + "?cb=" + Date.now());
-            const text = await res.text();
-            kbData = Papa.parse(text, { header: true }).data.filter(r => r.Heading);
             
-            // Step 2: AI Model
-            status.innerText = "Loading MiniLM-L6 (23MB)...";
+            const res = await fetch(CSV_URL);
+            if (!res.ok) throw new Error(`Google rejected the link (Status ${res.status}). Ensure the sheet is 'Published to Web'.`);
+            
+            const text = await res.text();
+            kbData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+            
+            // STEP 2: LOAD AI
+            status.innerText = "Loading AI Brain (23MB)...";
             bar.style.width = "60%";
             extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
 
-            // Step 3: Indexing
-            status.innerText = "Indexing Semantic Data...";
+            // STEP 3: INDEX
+            status.innerText = "Finalizing Index...";
             bar.style.width = "90%";
-            fuse = new Fuse(kbData, { keys: ["Heading", "Content", "Keywords"], threshold: 0.4, includeScore: true });
+            fuse = new Fuse(kbData, { 
+                keys: ["Heading", "Content", "Keywords"], 
+                threshold: 0.4, 
+                includeScore: true 
+            });
 
             bar.style.width = "100%";
-            status.innerText = "System Live!";
-            setTimeout(() => document.getElementById('setup-overlay').style.display = 'none', 600);
+            status.innerText = "Welcome to Tetr Wiki";
+            setTimeout(() => {
+                document.getElementById('setup-overlay').style.display = 'none';
+                addMsg("<b>System:</b> Connection established. I have analyzed your knowledge base and am ready to assist.", "bot");
+            }, 800);
 
         } catch (e) {
             console.error(e);
-            status.innerText = "Error: Check your internet or CSV link.";
+            status.innerText = "Link Error: Resetting connection...";
             status.style.color = "#ff4d4d";
+            // Final fallback attempt if the above fails
+            status.innerText = "Error. Please check if the Google Sheet is 'Published to Web' as a CSV.";
         }
     }
 
@@ -106,13 +118,12 @@
         if(results.length > 0) {
             const best = results[0].item;
             const conf = Math.round((1 - results[0].score) * 100);
-            addMsg(`<b>${best.Heading}</b><br>${best.Content}<br><small style="color:#888">Confidence: ${conf}%</small>`, 'bot');
+            addMsg(`<b>${best.Heading}</b><br>${best.Content}<br><small style="color:#888">Match Confidence: ${conf}%</small>`, 'bot');
             
-            // WebSpeech Support
             const speech = new SpeechSynthesisUtterance(best.Content.substring(0, 150));
             window.speechSynthesis.speak(speech);
         } else {
-            addMsg("I couldn't find a direct match. Try different keywords.", 'bot');
+            addMsg("I couldn't find a direct match. Try searching for a specific keyword like 'Founders' or 'Bachelor'.", 'bot');
         }
     }
 
