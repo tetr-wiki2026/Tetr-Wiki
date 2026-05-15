@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>TETR AI WIKI - Semantic Assistant</title>
-    <!-- External Libraries from CDN -->
+    <title>TETR AI WIKI - Smart Assistant</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.0/builds/compromise.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/langdetect@1.1.0/build/langdetect.min.js"></script>
-    <!-- Transformers.js for AI models -->
     <script type="importmap">
         {
             "imports": {
@@ -33,7 +31,6 @@
             overflow: hidden;
         }
 
-        /* Color palette: #004822 (dark green), #009C50 (vibrant green), White */
         .loader-overlay {
             position: fixed;
             inset: 0;
@@ -47,6 +44,7 @@
             text-align: center;
             padding: 2rem;
             transition: opacity 0.5s ease;
+            overflow-y: auto;
         }
 
         .loader-logo {
@@ -80,6 +78,18 @@
             font-size: 0.9rem;
             opacity: 0.9;
             margin-top: 0.5rem;
+        }
+
+        .debug-info {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 1rem;
+            max-width: 500px;
+            word-break: break-all;
+            background: rgba(255,255,255,0.1);
+            padding: 0.8rem;
+            border-radius: 8px;
+            text-align: left;
         }
 
         header {
@@ -245,6 +255,12 @@
             padding: 0.3rem;
             color: #334155;
         }
+        
+        .cache-status {
+            font-size: 0.65rem;
+            margin-top: 0.5rem;
+            color: #009C50;
+        }
     </style>
 </head>
 <body>
@@ -254,6 +270,8 @@
     <p id="loading-message">Initializing AI engines ...</p>
     <div class="progress-container"><div id="progressFill" class="progress-fill"></div></div>
     <div id="status-detail" class="status-text">Preparing environment</div>
+    <div id="cacheStatus" class="cache-status"></div>
+    <div id="debugInfo" class="debug-info"></div>
 </div>
 
 <header>
@@ -261,44 +279,35 @@
     <span style="font-size:0.8rem;">Multilingual • Semantic</span>
 </header>
 
-<div class="suggestions" id="suggestionsArea">
-    <!-- Dynamic suggested questions will appear here -->
-</div>
+<div class="suggestions" id="suggestionsArea"></div>
 
 <div id="chat" class="chat-area"></div>
 
 <div class="input-panel">
     <div class="input-wrapper">
-        <input type="text" id="userInput" placeholder="Ask in English, Hindi, العربية, Français, Deutsch, Español..." autocomplete="off">
-        <button id="voiceBtn" class="voice-btn" title="Voice input (Web API)">🎤</button>
+        <input type="text" id="userInput" placeholder="Ask about programs, admission, founders..." autocomplete="off">
+        <button id="voiceBtn" class="voice-btn" title="Voice input">🎤</button>
     </div>
     <button id="askBtn">Ask ➤</button>
 </div>
-<footer>⚡ Confidence scoring | Context memory | Cached AI models & CSV</footer>
+<footer>⚡ Confidence scoring | Context memory | Cached AI models & CSV (Cache Storage API)</footer>
 
 <script type="module">
-    import { pipeline, env } from '@xenova/transformers';
+    import { pipeline } from '@xenova/transformers';
     
-    // ---------- CONFIGURATION ----------
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Salj0Qpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
-    
-    // Cache keys (localStorage / session)
-    const CACHE_CSV_KEY = "tetr_wiki_csv_data";
-    const CACHE_MODEL_FLAG = "tetr_models_loaded";
+    const CACHE_NAME = 'tetr-csv-cache-v1';
+    const CSV_CACHE_KEY = 'tetr-knowledge-base';
     
     // Global state
-    let knowledgeBase = [];          // array of row objects
+    let knowledgeBase = [];
     let fuseIndex = null;
-    let sentenceEmbedder = null;     // all-MiniLM-L6-v2
-    let distilbertModel = null;      // distilbert (for advanced scoring)
-    let nlp = window.nlp;            // compromise.js
-    let langDetector = null;
+    let embedder = null;
+    let conversationMemory = [];
+    let responseCache = new Map();
+    let columnMap = { title: null, content: null, keywords: null, category: null };
     
-    // Context memory (JS array)
-    let conversationMemory = [];      // stores last 10 exchanges {question, answer, timestamp}
-    let responseCache = new Map();    // cache for Q -> answer + confidence
-    
-    // UI elements
+    // UI Elements
     const chatContainer = document.getElementById('chat');
     const userInput = document.getElementById('userInput');
     const askBtn = document.getElementById('askBtn');
@@ -308,18 +317,18 @@
     const statusDetail = document.getElementById('status-detail');
     const loadingMsg = document.getElementById('loading-message');
     const suggestionsArea = document.getElementById('suggestionsArea');
+    const debugInfo = document.getElementById('debugInfo');
+    const cacheStatus = document.getElementById('cacheStatus');
     
-    let isListening = false;
     let recognition = null;
+    let isListening = false;
     
-    // Helper: update progress
     function setProgress(percent, message, detail) {
         progressFill.style.width = `${percent}%`;
         if(message) loadingMsg.innerText = message;
         if(detail) statusDetail.innerText = detail;
     }
     
-    // Helper: add message to chat
     function addMessage(text, sender, confidenceScore = null, lang = null) {
         const div = document.createElement('div');
         div.className = `message ${sender}`;
@@ -332,193 +341,233 @@
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
     
-    // Load CSV with cache (IndexedDB or localStorage fallback)
-    async function loadCachedCSV() {
-        setProgress(10, "Loading knowledge base...", "Fetching CSV");
-        const cached = localStorage.getItem(CACHE_CSV_KEY);
-        if(cached && cached !== "undefined") {
-            try {
-                const parsed = JSON.parse(cached);
-                if(parsed && parsed.length) {
-                    knowledgeBase = parsed;
-                    setProgress(40, "CSV loaded from cache", "Building search index");
-                    return true;
-                }
-            } catch(e) {}
+    // Cache Storage API - Store CSV response
+    async function storeCSVInCache(csvText) {
+        try {
+            const cache = await caches.open(CACHE_NAME);
+            const response = new Response(csvText, {
+                headers: { 'Content-Type': 'text/csv', 'Cache-Control': 'max-age=86400' }
+            });
+            await cache.put(CSV_CACHE_KEY, response);
+            cacheStatus.innerHTML = `✓ CSV stored in Cache Storage (${Math.round(csvText.length / 1024)} KB)`;
+            return true;
+        } catch (error) {
+            console.warn('Cache Storage failed:', error);
+            cacheStatus.innerHTML = `⚠️ Cache Storage unavailable, using localStorage fallback`;
+            return false;
         }
-        // Fetch fresh
-        const response = await fetch(CSV_URL);
-        const csvText = await response.text();
-        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        knowledgeBase = parsed.data;
-        // remove completely empty rows
-        knowledgeBase = knowledgeBase.filter(row => row.Heading || row.Content || row.Keywords);
-        localStorage.setItem(CACHE_CSV_KEY, JSON.stringify(knowledgeBase));
-        setProgress(40, "CSV synchronized", "Data stored locally");
+    }
+    
+    // Cache Storage API - Retrieve CSV
+    async function getCSVFromCache() {
+        try {
+            const cache = await caches.open(CACHE_NAME);
+            const response = await cache.match(CSV_CACHE_KEY);
+            if (response && response.ok) {
+                const csvText = await response.text();
+                cacheStatus.innerHTML = `✓ CSV retrieved from Cache Storage (${Math.round(csvText.length / 1024)} KB)`;
+                return csvText;
+            }
+        } catch (error) {
+            console.warn('Cache read failed:', error);
+        }
+        return null;
+    }
+    
+    // Load CSV with Cache Storage API priority
+    async function loadAndParseCSV() {
+        setProgress(10, "Checking Cache Storage...", "Looking for cached CSV");
+        
+        let csvText = null;
+        
+        // Step 1: Try Cache Storage API first
+        csvText = await getCSVFromCache();
+        
+        // Step 2: If not in cache, fetch from network
+        if (!csvText) {
+            setProgress(20, "Fetching from Google Sheets...", "Downloading CSV (will cache after load)");
+            const response = await fetch(CSV_URL);
+            csvText = await response.text();
+            
+            // Store in Cache Storage for next time
+            await storeCSVInCache(csvText);
+            cacheStatus.innerHTML += `<br>✓ CSV cached for future visits`;
+        } else {
+            setProgress(25, "Using cached CSV", "Parsing data");
+        }
+        
+        // Parse CSV
+        const result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        knowledgeBase = result.data;
+        
+        // Remove empty rows
+        knowledgeBase = knowledgeBase.filter(row => {
+            return Object.values(row).some(val => val && val.toString().trim().length > 0);
+        });
+        
+        // Detect column names
+        if (knowledgeBase.length > 0) {
+            const sampleRow = knowledgeBase[0];
+            const availableCols = Object.keys(sampleRow);
+            
+            columnMap.title = availableCols.find(c => c === 'Heading' || c.toLowerCase() === 'heading') || availableCols[1];
+            columnMap.content = availableCols.find(c => c === 'Content' || c.toLowerCase() === 'content') || availableCols[2];
+            columnMap.keywords = availableCols.find(c => c === 'Keywords' || c.toLowerCase() === 'keywords') || null;
+            columnMap.category = availableCols.find(c => c === 'Category' || c.toLowerCase() === 'category') || null;
+            
+            debugInfo.innerHTML = `
+                ✅ Loaded ${knowledgeBase.length} records from CSV<br>
+                📊 Columns: ${availableCols.join(', ')}<br>
+                🎯 Using: Title="${columnMap.title}", Content="${columnMap.content}"<br>
+                📝 Sample: "${sampleRow[columnMap.title]?.substring(0, 60) || 'N/A'}..."
+            `;
+            
+            // Also backup to localStorage for quick access
+            localStorage.setItem('tetr_csv_backup', JSON.stringify(knowledgeBase));
+            localStorage.setItem('tetr_column_map', JSON.stringify(columnMap));
+        }
+        
         return true;
     }
     
-    // Load AI models and others
     async function loadModels() {
-        setProgress(45, "Loading all-MiniLM-L6-v2 (23MB)...", "Semantic embedding engine");
-        // all-MiniLM-L6-v2
-        sentenceEmbedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        setProgress(45, "Loading all-MiniLM-L6-v2 (23MB)...", "This may take 10-20 seconds first time");
+        embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         
-        setProgress(65, "Loading DistilBERT (68MB) ...", "Deep language understanding");
-        distilbertModel = await pipeline('feature-extraction', 'Xenova/distilbert-base-uncased');
+        setProgress(75, "Optimizing...", "Building search index");
         
-        setProgress(85, "Finalizing tools", "Compromise.js, language detection");
-        // compromise.js is already global
         if(window.langdetect) {
-            langDetector = window.langdetect;
-            langDetector.init();
-        } else {
-            // fallback mock
-            langDetector = { detect: (txt) => { return 'en'; } };
+            try {
+                window.langdetect.init();
+            } catch(e) { console.warn("Langdetect init issue"); }
         }
-        setProgress(95, "Ready", "Building Fuse.js index");
     }
     
-    // Build fuse index
-    function buildFuse() {
+    function buildFuseIndex() {
+        const searchKeys = [columnMap.title, columnMap.content];
+        if(columnMap.keywords) searchKeys.push(columnMap.keywords);
+        if(columnMap.category) searchKeys.push(columnMap.category);
+        
         fuseIndex = new Fuse(knowledgeBase, {
-            keys: ['Heading', 'Content', 'Keywords'],
-            threshold: 0.35,
+            keys: searchKeys,
+            threshold: 0.4,
             includeScore: true,
-            minMatchCharLength: 2
+            minMatchCharLength: 2,
+            ignoreLocation: true
         });
+        
+        debugInfo.innerHTML += `<br>🔍 Fuse.js ready - searching ${knowledgeBase.length} documents across ${searchKeys.length} fields`;
     }
     
-    // Language detection wrapper
+    async function computeConfidence(question, fuseResult) {
+        let confidence = 0.3;
+        
+        if(fuseResult && fuseResult.score !== undefined) {
+            confidence = Math.max(0.2, 1 - (fuseResult.score / 2));
+        }
+        
+        if(embedder && fuseResult && fuseResult.item) {
+            try {
+                const contentText = fuseResult.item[columnMap.content] || fuseResult.item[columnMap.title] || "";
+                if(contentText.length > 10) {
+                    const qEmb = await embedder(question, { pooling: 'mean', normalize: true });
+                    const cEmb = await embedder(contentText.substring(0, 500), { pooling: 'mean', normalize: true });
+                    
+                    let similarity = 0;
+                    for(let i = 0; i < qEmb.data.length; i++) {
+                        similarity += qEmb.data[i] * cEmb.data[i];
+                    }
+                    confidence = (confidence + similarity) / 2;
+                }
+            } catch(e) { console.warn("Embedding error:", e); }
+        }
+        
+        return Math.min(0.98, Math.max(0.15, confidence));
+    }
+    
     function detectLanguage(text) {
-        if(!langDetector || !langDetector.detect) return 'en';
-        try {
-            const detected = langDetector.detect(text);
-            if(detected && detected.length) return detected[0].lang;
-        } catch(e) {}
+        if(window.langdetect && window.langdetect.detect) {
+            try {
+                const detected = window.langdetect.detect(text);
+                if(detected && detected.length) return detected[0].lang;
+            } catch(e) {}
+        }
         return 'en';
     }
     
-    // Simple keyword boost for fuse results + embedding similarity for confidence
-    async function computeConfidence(question, fuseResultItem) {
-        let baseScore = 0.5;
-        if(fuseResultItem && fuseResultItem.score !== undefined) {
-            // fuse score: lower is better, convert to confidence
-            baseScore = Math.max(0.2, 1 - (fuseResultItem.score || 0.5));
-        }
-        // Use embeddings to boost confidence if models exist
-        try {
-            if(sentenceEmbedder) {
-                const qEmb = await sentenceEmbedder(question, { pooling: 'mean', normalize: true });
-                const contentText = (fuseResultItem?.item?.Content || fuseResultItem?.Heading || "").substring(0, 500);
-                if(contentText) {
-                    const cEmb = await sentenceEmbedder(contentText, { pooling: 'mean', normalize: true });
-                    // dot product similarity
-                    const qData = qEmb.data;
-                    const cData = cEmb.data;
-                    let sim = 0;
-                    for(let i=0;i<qData.length;i++) sim += qData[i] * cData[i];
-                    baseScore = (baseScore + sim) / 2;
-                }
-            }
-        } catch(e) { console.warn("embedding boost error"); }
-        return Math.min(0.99, Math.max(0.25, baseScore));
-    }
-    
-    // Retrieve answer with caching & context
-    async function getBestAnswer(question) {
-        // Check response cache
+    async function getAnswer(question) {
         const cacheKey = question.toLowerCase().trim();
         if(responseCache.has(cacheKey)) {
-            console.log("Cache hit");
             return responseCache.get(cacheKey);
         }
         
-        // 1. Fuse search
-        const fuseResults = fuseIndex.search(question);
-        if(!fuseResults.length) {
-            const fallback = { answer: "I couldn't find a specific match. Please try rephrasing.", confidence: 0.2 };
-            responseCache.set(cacheKey, fallback);
-            return fallback;
-        }
-        const bestMatch = fuseResults[0];
-        const matchedItem = bestMatch.item;
-        let answerText = `<b>${matchedItem.Heading || "Info"}</b><br>${matchedItem.Content || "No detailed content"}`;
-        
-        // Add keywords hint if available
-        if(matchedItem.Keywords) answerText += `<br><small>🔑 ${matchedItem.Keywords}</small>`;
-        
-        let confidence = await computeConfidence(question, bestMatch);
-        
-        // 2. Use DistilBERT to re-rank if confidence borderline
-        if(confidence < 0.65 && distilbertModel && matchedItem.Content) {
-            try {
-                // simple cross-encoding simulation: get embeddings and compare (basic)
-                const qEmb = await distilbertModel(question, { pooling: 'mean' });
-                const aEmb = await distilbertModel(matchedItem.Content.substring(0, 512), { pooling: 'mean' });
-                let distilSim = 0;
-                for(let i=0;i<qEmb.data.length;i++) distilSim += qEmb.data[i] * aEmb.data[i];
-                confidence = (confidence + distilSim) / 2;
-            } catch(e) {}
+        if(!fuseIndex || knowledgeBase.length === 0) {
+            return { answer: "Knowledge base not loaded yet. Please wait.", confidence: 0.1 };
         }
         
-        const result = { answer: answerText, confidence: confidence, rawItem: matchedItem };
+        const results = fuseIndex.search(question);
+        
+        if(results.length === 0) {
+            return { answer: "I couldn't find a specific match. Please try different keywords.", confidence: 0.2 };
+        }
+        
+        const best = results[0];
+        const item = best.item;
+        const title = item[columnMap.title] || "Information";
+        const content = item[columnMap.content] || "No detailed content available";
+        const keywords = columnMap.keywords ? item[columnMap.keywords] : null;
+        
+        let answerText = `<b>${title}</b><br><br>${content}`;
+        if(keywords && keywords.trim()) answerText += `<br><br><small>🔑 Related: ${keywords}</small>`;
+        
+        const confidence = await computeConfidence(question, best);
+        
+        const result = { answer: answerText, confidence: confidence };
         responseCache.set(cacheKey, result);
         return result;
     }
     
-    // Update context memory
-    function updateMemory(question, answer, confidence) {
-        conversationMemory.unshift({ question, answer, timestamp: Date.now(), confidence });
-        if(conversationMemory.length > 12) conversationMemory.pop();
-    }
-    
-    // Generate suggested questions from current knowledge base (top headings)
     function updateSuggestedQuestions() {
-        if(!knowledgeBase.length) return;
-        const headings = knowledgeBase.slice(0, 8).map(row => row.Heading).filter(h => h && h.length > 5);
-        const unique = [...new Set(headings)];
-        const suggestions = unique.slice(0, 5).map(h => `📌 ${h}`);
-        suggestionsArea.innerHTML = suggestions.map(s => `<div class="suggestion-chip">${s}</div>`).join('');
+        if(knowledgeBase.length === 0) return;
+        
+        const titles = knowledgeBase.slice(0, 6).map(row => row[columnMap.title]).filter(t => t && t.length > 5);
+        const unique = [...new Set(titles)];
+        
+        suggestionsArea.innerHTML = unique.map(title => 
+            `<div class="suggestion-chip">📌 ${title}</div>`
+        ).join('');
+        
         document.querySelectorAll('.suggestion-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                let clean = chip.innerText.replace('📌 ', '');
-                userInput.value = clean;
+                userInput.value = chip.innerText.replace('📌 ', '');
                 askBot();
             });
         });
     }
     
-    // Main ask function
     async function askBot() {
-        let question = userInput.value.trim();
+        const question = userInput.value.trim();
         if(!question) return;
+        
         addMessage(question, 'user');
         userInput.value = '';
         
-        // detect language
         const lang = detectLanguage(question);
-        // Get answer
-        const { answer, confidence } = await getBestAnswer(question);
-        // add with language & confidence
-        addMessage(answer, 'bot', confidence, lang);
-        updateMemory(question, answer, confidence);
+        const { answer, confidence } = await getAnswer(question);
         
-        // optional: if low confidence, offer rephrase
-        if(confidence < 0.45) {
-            setTimeout(() => {
-                addMessage("💡 Tip: try asking with more specific keywords from the wiki.", 'bot', 0.0);
-            }, 300);
-        }
+        addMessage(answer, 'bot', confidence, lang);
+        
+        conversationMemory.unshift({ question, answer, timestamp: Date.now() });
+        if(conversationMemory.length > 10) conversationMemory.pop();
     }
     
-    // Voice input using Web Speech API
     function initVoice() {
         if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             voiceBtn.style.opacity = '0.5';
             voiceBtn.title = "Voice not supported";
             return;
         }
+        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
         recognition.continuous = false;
@@ -530,58 +579,68 @@
             voiceBtn.classList.add('listening');
             voiceBtn.innerText = "🎙️";
         };
+        
         recognition.onend = () => {
             isListening = false;
             voiceBtn.classList.remove('listening');
             voiceBtn.innerText = "🎤";
         };
+        
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             userInput.value = transcript;
             askBot();
         };
-        recognition.onerror = () => {
-            isListening = false;
-            voiceBtn.classList.remove('listening');
-            voiceBtn.innerText = "🎤";
-        };
+        
         voiceBtn.onclick = () => {
-            if(isListening) recognition.stop();
-            else recognition.start();
+            if(isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.error("Voice error");
+                }
+            }
         };
     }
     
-    // Full startup routine with caching and progressive loading
     async function bootstrap() {
         try {
-            setProgress(5, "Starting TETR AI core", "verifying caches");
-            await loadCachedCSV();
-            await loadModels();
-            buildFuse();
+            // Load CSV (from Cache Storage API if available)
+            await loadAndParseCSV();
+            
+            setProgress(40, "Building search index...", "Creating Fuse.js index");
+            buildFuseIndex();
             updateSuggestedQuestions();
+            
+            // Load AI models (these are cached by Transformers.js automatically)
+            await loadModels();
+            
             initVoice();
-            setProgress(100, "All systems ready", "You can now ask questions");
+            
+            setProgress(100, "Complete!", "Ready for questions");
             setTimeout(() => {
                 loaderDiv.style.display = 'none';
-                addMessage("👋 Welcome to TETR Wiki. I'm powered by semantic AI + multilingual detection. Ask me anything about programs, admissions, policies, and founders.", 'bot', 0.99);
-                // greet with example
-            }, 500);
-        } catch(err) {
-            console.error(err);
-            statusDetail.innerText = "Error loading AI. Retry or check network.";
-            loadingMsg.innerText = "Connection issue";
+                addMessage("✅ TETR Wiki is ready! Ask me anything about programs, admissions, or policies.", 'bot', 0.99);
+                
+                if(knowledgeBase.length > 0 && knowledgeBase[0][columnMap.title]) {
+                    addMessage(`💡 Try asking: "${knowledgeBase[0][columnMap.title]}"`, 'bot', 0.5);
+                }
+            }, 800);
+            
+        } catch(error) {
+            debugInfo.innerHTML += `<br>❌ Error: ${error.message}`;
             setTimeout(() => {
                 loaderDiv.style.display = 'none';
-                addMessage("⚠️ Failed to load AI models, but Fuse.js fallback works. Refresh if needed.", 'bot');
-            }, 1500);
+                addMessage("⚠️ Load issue. Please refresh.", 'bot', 0.1);
+            }, 1000);
         }
     }
     
-    // event listeners
     askBtn.addEventListener('click', askBot);
     userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') askBot(); });
     
-    // start everything
     bootstrap();
 </script>
 </body>
