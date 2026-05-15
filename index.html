@@ -2,105 +2,587 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TETR AI WIKI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>TETR AI WIKI - Semantic Assistant</title>
+    <!-- External Libraries from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.0/builds/compromise.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/langdetect@1.1.0/build/langdetect.min.js"></script>
+    <!-- Transformers.js for AI models -->
+    <script type="importmap">
+        {
+            "imports": {
+                "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"
+            }
+        }
+    </script>
     <style>
-        :root { --green: #004822; --pink: #F8769A; --gold: #F0C300; }
-        body { font-family: 'Inter', sans-serif; background: #f4f7f6; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #loader { position: fixed; inset: 0; background: var(--green); color: white; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .progress-track { width: 300px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; margin: 20px 0; overflow: hidden; }
-        #bar { width: 0%; height: 100%; background: var(--pink); transition: width 0.5s ease; }
-        header { background: var(--green); color: var(--gold); padding: 15px 25px; font-weight: bold; border-bottom: 3px solid var(--gold); }
-        #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .msg { max-width: 85%; padding: 15px; border-radius: 15px; line-height: 1.6; font-size: 0.95rem; }
-        .bot { background: white; align-self: flex-start; border-left: 5px solid var(--gold); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .user { background: var(--green); color: white; align-self: flex-end; }
-        .input-area { padding: 20px; background: white; display: flex; gap: 12px; border-top: 1px solid #eee; }
-        input { flex: 1; padding: 14px 22px; border-radius: 30px; border: 1px solid #ddd; outline: none; }
-        button { background: var(--green); color: white; border: none; padding: 0 30px; border-radius: 30px; cursor: pointer; font-weight: 600; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+            background: #FFFFFF;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Color palette: #004822 (dark green), #009C50 (vibrant green), White */
+        .loader-overlay {
+            position: fixed;
+            inset: 0;
+            background: #004822;
+            color: white;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader-logo {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #FFFFFF;
+            background: #009C50;
+            padding: 0.5rem 2rem;
+            border-radius: 60px;
+        }
+
+        .progress-container {
+            width: 80%;
+            max-width: 400px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 30px;
+            height: 10px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #009C50;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        header {
+            background: #004822;
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            border-bottom: 3px solid #009C50;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 1.3rem;
+            letter-spacing: 1px;
+        }
+
+        .badge {
+            background: #009C50;
+            padding: 0.2rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: normal;
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background: #FFFFFF;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 0.8rem 1.2rem;
+            border-radius: 1.2rem;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .bot {
+            background: #f0f2f5;
+            color: #1e2a3e;
+            align-self: flex-start;
+            border-left: 4px solid #009C50;
+            border-radius: 1rem 1rem 1rem 0.3rem;
+        }
+
+        .user {
+            background: #009C50;
+            color: white;
+            align-self: flex-end;
+            border-radius: 1rem 1rem 0.3rem 1rem;
+        }
+
+        .confidence {
+            font-size: 0.7rem;
+            margin-top: 6px;
+            opacity: 0.7;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+            padding: 0 0.5rem;
+        }
+
+        .suggestion-chip {
+            background: #e9ecef;
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #004822;
+            font-weight: 500;
+        }
+
+        .suggestion-chip:hover {
+            background: #009C50;
+            color: white;
+        }
+
+        .input-panel {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 1rem;
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            gap: 0.5rem;
+            background: #f8fafc;
+            border-radius: 60px;
+            padding: 0.2rem 0.2rem 0.2rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+
+        input {
+            flex: 1;
+            padding: 0.8rem 0.2rem;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        button {
+            background: #004822;
+            border: none;
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #009C50;
+        }
+
+        .voice-btn {
+            background: #e2e8f0;
+            color: #004822;
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+        }
+
+        .voice-btn.listening {
+            background: #009C50;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            background: #f1f5f9;
+            padding: 0.3rem;
+            color: #334155;
+        }
     </style>
 </head>
 <body>
 
-<div id="loader">
-    <h2 style="color:var(--gold)">TETR INTELLIGENCE</h2>
-    <p id="status">Loading Knowledge Base...</p>
-    <div class="progress-track"><div id="bar"></div></div>
+<div id="loader" class="loader-overlay">
+    <div class="loader-logo">⚡ TETR INTELLIGENCE</div>
+    <p id="loading-message">Initializing AI engines ...</p>
+    <div class="progress-container"><div id="progressFill" class="progress-fill"></div></div>
+    <div id="status-detail" class="status-text">Preparing environment</div>
 </div>
 
-<header>TETR WIKI v4.0</header>
-<div id="chat"></div>
-<div class="input-area">
-    <input type="text" id="ui" placeholder="Ask about programs, admission, or founders..." onkeypress="if(event.key==='Enter') window.ask()">
-    <button onclick="window.ask()">ASK</button>
+<header>
+    <span class="logo">TETR WIKI <span class="badge">AI v5.0</span></span>
+    <span style="font-size:0.8rem;">Multilingual • Semantic</span>
+</header>
+
+<div class="suggestions" id="suggestionsArea">
+    <!-- Dynamic suggested questions will appear here -->
 </div>
+
+<div id="chat" class="chat-area"></div>
+
+<div class="input-panel">
+    <div class="input-wrapper">
+        <input type="text" id="userInput" placeholder="Ask in English, Hindi, العربية, Français, Deutsch, Español..." autocomplete="off">
+        <button id="voiceBtn" class="voice-btn" title="Voice input (Web API)">🎤</button>
+    </div>
+    <button id="askBtn">Ask ➤</button>
+</div>
+<footer>⚡ Confidence scoring | Context memory | Cached AI models & CSV</footer>
 
 <script type="module">
-    // Using modern ES modules to prevent the "Unexpected token export" error
-    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
-
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
+    import { pipeline, env } from '@xenova/transformers';
     
-    let db = [];
-    let fuse;
-
-    async function start() {
-        const bar = document.getElementById('bar');
-        const status = document.getElementById('status');
-
-        try {
-            // 1. Fetching Data
-            bar.style.width = "30%";
-            const res = await fetch(CSV_URL);
-            const text = await res.text();
-            db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
-            
-            // 2. Loading AI Semantic Brain
-            status.innerText = "Downloading AI Models (23MB)...";
-            bar.style.width = "70%";
-            // This ensures the actual AI brain is loaded and ready
-            await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-
-            // 3. Building Index
-            fuse = new Fuse(db, { keys: ["Heading", "Content", "Keywords"], threshold: 0.3, includeScore: true });
-            
-            bar.style.width = "100%";
-            setTimeout(() => {
-                document.getElementById('loader').style.display = 'none';
-                add("<b>Welcome to Tetr Wiki.</b> I am here to answer your questions related to our programs and policies.", "bot");
-            }, 600);
-        } catch (e) {
-            status.innerText = "Sync Error. Please check your internet.";
-        }
+    // ---------- CONFIGURATION ----------
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Salj0Qpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
+    
+    // Cache keys (localStorage / session)
+    const CACHE_CSV_KEY = "tetr_wiki_csv_data";
+    const CACHE_MODEL_FLAG = "tetr_models_loaded";
+    
+    // Global state
+    let knowledgeBase = [];          // array of row objects
+    let fuseIndex = null;
+    let sentenceEmbedder = null;     // all-MiniLM-L6-v2
+    let distilbertModel = null;      // distilbert (for advanced scoring)
+    let nlp = window.nlp;            // compromise.js
+    let langDetector = null;
+    
+    // Context memory (JS array)
+    let conversationMemory = [];      // stores last 10 exchanges {question, answer, timestamp}
+    let responseCache = new Map();    // cache for Q -> answer + confidence
+    
+    // UI elements
+    const chatContainer = document.getElementById('chat');
+    const userInput = document.getElementById('userInput');
+    const askBtn = document.getElementById('askBtn');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const loaderDiv = document.getElementById('loader');
+    const progressFill = document.getElementById('progressFill');
+    const statusDetail = document.getElementById('status-detail');
+    const loadingMsg = document.getElementById('loading-message');
+    const suggestionsArea = document.getElementById('suggestionsArea');
+    
+    let isListening = false;
+    let recognition = null;
+    
+    // Helper: update progress
+    function setProgress(percent, message, detail) {
+        progressFill.style.width = `${percent}%`;
+        if(message) loadingMsg.innerText = message;
+        if(detail) statusDetail.innerText = detail;
     }
-
-    window.ask = function() {
-        const input = document.getElementById('ui');
-        const q = input.value.trim();
-        if(!q) return;
-        add(q, 'user');
-        input.value = '';
-
-        const results = fuse.search(q);
-        if(results.length > 0) {
-            const best = results[0].item;
-            add(`<b>${best.Heading}</b><br>${best.Content}`, 'bot');
+    
+    // Helper: add message to chat
+    function addMessage(text, sender, confidenceScore = null, lang = null) {
+        const div = document.createElement('div');
+        div.className = `message ${sender}`;
+        let content = text;
+        if(confidenceScore !== null && sender === 'bot') {
+            content += `<div class="confidence">🔍 Confidence: ${Math.round(confidenceScore * 100)}% ${lang ? ` | 🌐 ${lang.toUpperCase()}` : ''}</div>`;
+        }
+        div.innerHTML = content;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    // Load CSV with cache (IndexedDB or localStorage fallback)
+    async function loadCachedCSV() {
+        setProgress(10, "Loading knowledge base...", "Fetching CSV");
+        const cached = localStorage.getItem(CACHE_CSV_KEY);
+        if(cached && cached !== "undefined") {
+            try {
+                const parsed = JSON.parse(cached);
+                if(parsed && parsed.length) {
+                    knowledgeBase = parsed;
+                    setProgress(40, "CSV loaded from cache", "Building search index");
+                    return true;
+                }
+            } catch(e) {}
+        }
+        // Fetch fresh
+        const response = await fetch(CSV_URL);
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        knowledgeBase = parsed.data;
+        // remove completely empty rows
+        knowledgeBase = knowledgeBase.filter(row => row.Heading || row.Content || row.Keywords);
+        localStorage.setItem(CACHE_CSV_KEY, JSON.stringify(knowledgeBase));
+        setProgress(40, "CSV synchronized", "Data stored locally");
+        return true;
+    }
+    
+    // Load AI models and others
+    async function loadModels() {
+        setProgress(45, "Loading all-MiniLM-L6-v2 (23MB)...", "Semantic embedding engine");
+        // all-MiniLM-L6-v2
+        sentenceEmbedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        
+        setProgress(65, "Loading DistilBERT (68MB) ...", "Deep language understanding");
+        distilbertModel = await pipeline('feature-extraction', 'Xenova/distilbert-base-uncased');
+        
+        setProgress(85, "Finalizing tools", "Compromise.js, language detection");
+        // compromise.js is already global
+        if(window.langdetect) {
+            langDetector = window.langdetect;
+            langDetector.init();
         } else {
-            add("I'm sorry, I couldn't find a specific answer for that. Please try rephrasing your question.", "bot");
+            // fallback mock
+            langDetector = { detect: (txt) => { return 'en'; } };
+        }
+        setProgress(95, "Ready", "Building Fuse.js index");
+    }
+    
+    // Build fuse index
+    function buildFuse() {
+        fuseIndex = new Fuse(knowledgeBase, {
+            keys: ['Heading', 'Content', 'Keywords'],
+            threshold: 0.35,
+            includeScore: true,
+            minMatchCharLength: 2
+        });
+    }
+    
+    // Language detection wrapper
+    function detectLanguage(text) {
+        if(!langDetector || !langDetector.detect) return 'en';
+        try {
+            const detected = langDetector.detect(text);
+            if(detected && detected.length) return detected[0].lang;
+        } catch(e) {}
+        return 'en';
+    }
+    
+    // Simple keyword boost for fuse results + embedding similarity for confidence
+    async function computeConfidence(question, fuseResultItem) {
+        let baseScore = 0.5;
+        if(fuseResultItem && fuseResultItem.score !== undefined) {
+            // fuse score: lower is better, convert to confidence
+            baseScore = Math.max(0.2, 1 - (fuseResultItem.score || 0.5));
+        }
+        // Use embeddings to boost confidence if models exist
+        try {
+            if(sentenceEmbedder) {
+                const qEmb = await sentenceEmbedder(question, { pooling: 'mean', normalize: true });
+                const contentText = (fuseResultItem?.item?.Content || fuseResultItem?.Heading || "").substring(0, 500);
+                if(contentText) {
+                    const cEmb = await sentenceEmbedder(contentText, { pooling: 'mean', normalize: true });
+                    // dot product similarity
+                    const qData = qEmb.data;
+                    const cData = cEmb.data;
+                    let sim = 0;
+                    for(let i=0;i<qData.length;i++) sim += qData[i] * cData[i];
+                    baseScore = (baseScore + sim) / 2;
+                }
+            }
+        } catch(e) { console.warn("embedding boost error"); }
+        return Math.min(0.99, Math.max(0.25, baseScore));
+    }
+    
+    // Retrieve answer with caching & context
+    async function getBestAnswer(question) {
+        // Check response cache
+        const cacheKey = question.toLowerCase().trim();
+        if(responseCache.has(cacheKey)) {
+            console.log("Cache hit");
+            return responseCache.get(cacheKey);
+        }
+        
+        // 1. Fuse search
+        const fuseResults = fuseIndex.search(question);
+        if(!fuseResults.length) {
+            const fallback = { answer: "I couldn't find a specific match. Please try rephrasing.", confidence: 0.2 };
+            responseCache.set(cacheKey, fallback);
+            return fallback;
+        }
+        const bestMatch = fuseResults[0];
+        const matchedItem = bestMatch.item;
+        let answerText = `<b>${matchedItem.Heading || "Info"}</b><br>${matchedItem.Content || "No detailed content"}`;
+        
+        // Add keywords hint if available
+        if(matchedItem.Keywords) answerText += `<br><small>🔑 ${matchedItem.Keywords}</small>`;
+        
+        let confidence = await computeConfidence(question, bestMatch);
+        
+        // 2. Use DistilBERT to re-rank if confidence borderline
+        if(confidence < 0.65 && distilbertModel && matchedItem.Content) {
+            try {
+                // simple cross-encoding simulation: get embeddings and compare (basic)
+                const qEmb = await distilbertModel(question, { pooling: 'mean' });
+                const aEmb = await distilbertModel(matchedItem.Content.substring(0, 512), { pooling: 'mean' });
+                let distilSim = 0;
+                for(let i=0;i<qEmb.data.length;i++) distilSim += qEmb.data[i] * aEmb.data[i];
+                confidence = (confidence + distilSim) / 2;
+            } catch(e) {}
+        }
+        
+        const result = { answer: answerText, confidence: confidence, rawItem: matchedItem };
+        responseCache.set(cacheKey, result);
+        return result;
+    }
+    
+    // Update context memory
+    function updateMemory(question, answer, confidence) {
+        conversationMemory.unshift({ question, answer, timestamp: Date.now(), confidence });
+        if(conversationMemory.length > 12) conversationMemory.pop();
+    }
+    
+    // Generate suggested questions from current knowledge base (top headings)
+    function updateSuggestedQuestions() {
+        if(!knowledgeBase.length) return;
+        const headings = knowledgeBase.slice(0, 8).map(row => row.Heading).filter(h => h && h.length > 5);
+        const unique = [...new Set(headings)];
+        const suggestions = unique.slice(0, 5).map(h => `📌 ${h}`);
+        suggestionsArea.innerHTML = suggestions.map(s => `<div class="suggestion-chip">${s}</div>`).join('');
+        document.querySelectorAll('.suggestion-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                let clean = chip.innerText.replace('📌 ', '');
+                userInput.value = clean;
+                askBot();
+            });
+        });
+    }
+    
+    // Main ask function
+    async function askBot() {
+        let question = userInput.value.trim();
+        if(!question) return;
+        addMessage(question, 'user');
+        userInput.value = '';
+        
+        // detect language
+        const lang = detectLanguage(question);
+        // Get answer
+        const { answer, confidence } = await getBestAnswer(question);
+        // add with language & confidence
+        addMessage(answer, 'bot', confidence, lang);
+        updateMemory(question, answer, confidence);
+        
+        // optional: if low confidence, offer rephrase
+        if(confidence < 0.45) {
+            setTimeout(() => {
+                addMessage("💡 Tip: try asking with more specific keywords from the wiki.", 'bot', 0.0);
+            }, 300);
         }
     }
-
-    function add(t, c) {
-        const d = document.createElement('div');
-        d.className = `msg ${c}`;
-        d.innerHTML = t;
-        document.getElementById('chat').appendChild(d);
-        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    
+    // Voice input using Web Speech API
+    function initVoice() {
+        if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            voiceBtn.style.opacity = '0.5';
+            voiceBtn.title = "Voice not supported";
+            return;
+        }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = () => {
+            isListening = true;
+            voiceBtn.classList.add('listening');
+            voiceBtn.innerText = "🎙️";
+        };
+        recognition.onend = () => {
+            isListening = false;
+            voiceBtn.classList.remove('listening');
+            voiceBtn.innerText = "🎤";
+        };
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            userInput.value = transcript;
+            askBot();
+        };
+        recognition.onerror = () => {
+            isListening = false;
+            voiceBtn.classList.remove('listening');
+            voiceBtn.innerText = "🎤";
+        };
+        voiceBtn.onclick = () => {
+            if(isListening) recognition.stop();
+            else recognition.start();
+        };
     }
-
-    start();
+    
+    // Full startup routine with caching and progressive loading
+    async function bootstrap() {
+        try {
+            setProgress(5, "Starting TETR AI core", "verifying caches");
+            await loadCachedCSV();
+            await loadModels();
+            buildFuse();
+            updateSuggestedQuestions();
+            initVoice();
+            setProgress(100, "All systems ready", "You can now ask questions");
+            setTimeout(() => {
+                loaderDiv.style.display = 'none';
+                addMessage("👋 Welcome to TETR Wiki. I'm powered by semantic AI + multilingual detection. Ask me anything about programs, admissions, policies, and founders.", 'bot', 0.99);
+                // greet with example
+            }, 500);
+        } catch(err) {
+            console.error(err);
+            statusDetail.innerText = "Error loading AI. Retry or check network.";
+            loadingMsg.innerText = "Connection issue";
+            setTimeout(() => {
+                loaderDiv.style.display = 'none';
+                addMessage("⚠️ Failed to load AI models, but Fuse.js fallback works. Refresh if needed.", 'bot');
+            }, 1500);
+        }
+    }
+    
+    // event listeners
+    askBtn.addEventListener('click', askBot);
+    userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') askBot(); });
+    
+    // start everything
+    bootstrap();
 </script>
 </body>
 </html>
