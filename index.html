@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TETR Knowledge Base | AI-Powered Assistant</title>
+  <title>TETR Knowledge Base</title>
   
-  <!-- Transformers.js -->
+  <!-- Load Transformers.js from multiple CDNs for reliability -->
   <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.13.0/dist/transformers.min.js"></script>
   
   <style>
@@ -21,26 +21,25 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     .logo-icon {
       width: 40px;
       height: 40px;
       background: #009C50;
       border-radius: 12px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       font-size: 24px;
       font-weight: bold;
       color: white;
     }
-    .logo-text h1 { color: white; font-size: 20px; }
-    .logo-text p { color: rgba(255,255,255,0.7); font-size: 12px; }
-    .nav-link {
-      color: white;
-      text-decoration: none;
-      cursor: pointer;
-    }
+    .logo-text h1 { color: white; font-size: 20px; display: inline; margin-left: 10px; }
+    .logo-text p { color: rgba(255,255,255,0.7); font-size: 12px; margin-left: 10px; }
+    .nav-link { color: white; text-decoration: none; cursor: pointer; background: #009C50; padding: 8px 16px; border-radius: 20px; }
+    
     #loadingOverlay {
       position: fixed;
       top: 0;
@@ -59,7 +58,8 @@
       padding: 40px;
       border-radius: 24px;
       text-align: center;
-      max-width: 400px;
+      max-width: 450px;
+      margin: 20px;
     }
     .progress-bar-container {
       width: 100%;
@@ -75,7 +75,16 @@
       background: #009C50;
       transition: width 0.3s;
     }
-    .loading-status { font-size: 12px; color: #666; }
+    .loading-status { font-size: 12px; color: #666; margin-top: 10px; }
+    .retry-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #009C50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
     .main-container { max-width: 1200px; margin: 0 auto; padding: 32px; }
     .hero {
       background: white;
@@ -171,6 +180,7 @@
       margin: 0 2px;
     }
     @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    .error-message { color: #e74c3c; background: #fdf0ef; padding: 12px; border-radius: 8px; margin: 10px 0; }
     @media (max-width: 900px) { .main-container { padding: 20px; } .hero { padding: 32px 24px; } }
   </style>
 </head>
@@ -178,21 +188,25 @@
 
 <div id="loadingOverlay">
   <div class="loading-card">
-    <div class="loading-icon">🧠</div>
+    <div class="loading-icon" style="font-size: 48px; margin-bottom: 20px;">🧠</div>
     <h3>Loading Tetr AI Assistant</h3>
     <p id="loadingMessage">Initializing...</p>
     <div class="progress-bar-container">
       <div class="progress-bar" id="progressBar"></div>
     </div>
-    <div class="loading-status" id="loadingStatus">Checking AI models...</div>
-    <p style="font-size: 11px; margin-top: 20px;">AI models download once (90 MB) then work offline.<br>CSV data refreshes each session.</p>
+    <div class="loading-status" id="loadingStatus">Checking system...</div>
+    <p style="font-size: 11px; margin-top: 20px;">AI models may take 1-2 minutes on first load.<br>They will be cached for future visits.</p>
+    <button class="retry-btn" onclick="retryInit()" style="display: none;" id="retryBtn">Retry</button>
   </div>
 </div>
 
 <div class="navbar">
-  <div style="display: flex; align-items: center; gap: 12px;">
+  <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
     <div class="logo-icon">T</div>
-    <div class="logo-text"><h1>TETR Knowledge Base</h1><p>AI-Powered Information Quality Evaluator</p></div>
+    <div class="logo-text">
+      <h1>TETR Knowledge Base</h1>
+      <p>AI-Powered Information Quality Evaluator</p>
+    </div>
   </div>
   <a href="#" class="nav-link" onclick="resetChat(); return false;">New Chat</a>
 </div>
@@ -219,20 +233,27 @@
 
 <script>
 // ============================================================
-// CONFIGURATION - EDIT THIS URL
+// CONFIGURATION
 // ============================================================
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_PUBLISHED_ID/pub?output=csv";
-// Replace YOUR_PUBLISHED_ID with your actual Google Sheet CSV export ID
+// REPLACE THIS WITH YOUR PUBLISHED GOOGLE SHEET CSV URL
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAMPLE/publish?output=csv";
 
-// ============================================================
-// GLOBAL VARIABLES
-// ============================================================
-let extractor = null;        // All-MiniLM-L6-v2 for embeddings
-let qaModel = null;          // DistilBERT for answer extraction
+// Sample fallback data (works even without CSV)
+const SAMPLE_DATA = [
+  { heading: "What is Tetr College of Business?", content: "A new-age business school where students build real businesses across 7 countries. Established in 2024.", keywords: "tetr college business school global", category: "about" },
+  { heading: "Founder & Vision", content: "Pratham Mittal, alumnus of Wharton and The Doon School, founded Tetr to revolutionize business education through experiential learning.", keywords: "pratham mittal founder wharton doon school", category: "about" },
+  { heading: "Pillars of Tetr", content: "Four pillars: 1) Learn business by doing business, 2) Learn from top CXOs and Ivy League faculty, 3) Learn at top ranked institutions, 4) Learn through immersive experiences across 7 countries.", keywords: "pillars experiential cxos ivy league immersive", category: "about" },
+  { heading: "Bachelor of Management & Technology", content: "A full-time 4-year business degree. Students graduate with a degree from UBI Business School (Middlesex University).", keywords: "bmt management technology 4 years ubi", category: "programs" },
+  { heading: "Tetr Tribe", content: "Over 300 students from 50+ countries, speaking 45+ languages. Average age: 18 years. Male:Female ratio 60:40. Average SAT: 1490.", keywords: "tribe students community countries languages", category: "community" }
+];
+
+// Global variables
+let extractor = null;
+let qaModel = null;
 let knowledgeBase = [];
 let articleEmbeddings = null;
 let modelsLoaded = false;
-let isModelDownloading = false;
+let initAttempts = 0;
 
 // ============================================================
 // PROGRESS UI
@@ -241,153 +262,175 @@ function updateProgress(percent, message, status) {
   const progressBar = document.getElementById('progressBar');
   const loadingMsg = document.getElementById('loadingMessage');
   const statusText = document.getElementById('loadingStatus');
-  if (progressBar) progressBar.style.width = percent + '%';
+  if (progressBar) progressBar.style.width = Math.min(percent, 100) + '%';
   if (loadingMsg) loadingMsg.innerText = message || 'Loading...';
   if (statusText) statusText.innerText = status || '';
 }
 
+function showError(message) {
+  const statusText = document.getElementById('loadingStatus');
+  const retryBtn = document.getElementById('retryBtn');
+  if (statusText) {
+    statusText.innerHTML = `<span style="color: #e74c3c;">❌ ${message}</span>`;
+  }
+  if (retryBtn) retryBtn.style.display = 'inline-block';
+  updateProgress(100, 'Error', message);
+}
+
+function hideOverlay() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function retryInit() {
+  const retryBtn = document.getElementById('retryBtn');
+  if (retryBtn) retryBtn.style.display = 'none';
+  updateProgress(0, 'Retrying...', 'Starting fresh');
+  init();
+}
+
 // ============================================================
-// LOAD AI MODELS (Cached automatically by browser)
+// LOAD KNOWLEDGE BASE FROM CSV (with fallback)
 // ============================================================
-async function loadAIModels() {
-  if (extractor && qaModel) return;
-  if (isModelDownloading) return;
-  
-  isModelDownloading = true;
-  
+async function loadKnowledgeBase() {
   try {
-    updateProgress(10, 'Loading Transformers.js...', 'Initializing');
+    updateProgress(5, 'Fetching knowledge base...', 'Loading from Google Sheets');
     
-    // Check if pipeline exists
-    if (typeof pipeline === 'undefined') {
-      throw new Error('Transformers.js not loaded. Check your internet connection.');
+    let csvText = null;
+    
+    // Try to fetch CSV if URL is configured
+    if (CSV_URL && CSV_URL.includes('2PACX-1vSAMPLE') === false) {
+      try {
+        const response = await fetch(CSV_URL, { cache: 'no-store' });
+        if (response.ok) {
+          csvText = await response.text();
+        }
+      } catch(e) {
+        console.warn('CSV fetch failed, using sample data:', e);
+      }
     }
     
-    updateProgress(20, 'Downloading AI model (23 MB)...', 'This happens once per browser');
-    
-    // Load All-MiniLM-L6-v2 (23 MB quantized)
-    extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-      progress_callback: (progress) => {
-        if (progress.status === 'downloading') {
-          const percent = 20 + (progress.progress || 0) * 30;
-          updateProgress(percent, 'Downloading AI model...', `${Math.round(progress.progress * 100)}%`);
+    if (csvText) {
+      // Parse CSV
+      const lines = csvText.split('\n');
+      knowledgeBase = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        
+        // Simple CSV parsing
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < lines[i].length; j++) {
+          const char = lines[i][j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+        
+        if (values.length >= 3 && values[0]) {
+          knowledgeBase.push({
+            id: values[0] || i,
+            heading: values[1] || 'Untitled',
+            content: values[2] || '',
+            keywords: values[3] || '',
+            category: values[4] || 'general'
+          });
         }
       }
-    });
+    }
     
-    updateProgress(50, 'Downloading Q&A model (67 MB)...', 'One-time download');
+    // Use sample data if CSV didn't load or is empty
+    if (knowledgeBase.length === 0) {
+      knowledgeBase = SAMPLE_DATA;
+      updateProgress(10, 'Using sample data', 'CSV not configured');
+    }
     
-    // Load DistilBERT for question answering
-    qaModel = await pipeline('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad', {
-      progress_callback: (progress) => {
-        if (progress.status === 'downloading') {
-          const percent = 50 + (progress.progress || 0) * 30;
-          updateProgress(percent, 'Downloading Q&A model...', `${Math.round(progress.progress * 100)}%`);
-        }
-      }
-    });
-    
-    updateProgress(80, 'AI models ready!', 'Loading knowledge base...');
+    updateProgress(15, `Loaded ${knowledgeBase.length} articles`, 'Ready for AI models');
     
   } catch(error) {
-    console.error('Model loading error:', error);
-    updateProgress(100, 'Error loading AI', error.message);
-    throw error;
-  } finally {
-    isModelDownloading = false;
+    console.warn('Knowledge base error:', error);
+    knowledgeBase = SAMPLE_DATA;
+    updateProgress(15, `Loaded ${knowledgeBase.length} articles (sample)`, 'Using fallback data');
   }
 }
 
 // ============================================================
-// LOAD KNOWLEDGE BASE FROM CSV (Fresh every session)
+// LOAD AI MODELS
 // ============================================================
-async function loadKnowledgeBase() {
+async function loadAIModels() {
+  initAttempts++;
+  
   try {
-    updateProgress(82, 'Fetching latest data...', 'Downloading knowledge base');
+    updateProgress(20, 'Loading AI libraries...', 'Initializing Transformers.js');
     
-    const response = await fetch(CSV_URL);
-    if (!response.ok) throw new Error('Failed to fetch CSV');
-    
-    const csvText = await response.text();
-    
-    // Parse CSV
-    const lines = csvText.split('\n');
-    const headers = lines[0].split(',');
-    
-    knowledgeBase = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      
-      // Simple CSV parse (handles quoted fields)
-      const values = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let j = 0; j < lines[i].length; j++) {
-        const char = lines[i][j];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      values.push(current.trim());
-      
-      if (values.length >= 5 && values[0]) {
-        knowledgeBase.push({
-          id: values[0],
-          heading: values[1],
-          content: values[2],
-          keywords: values[3],
-          category: values[4]
-        });
-      }
+    // Check if Transformers is available
+    if (typeof transformers === 'undefined' && typeof pipeline === 'undefined') {
+      throw new Error('Transformers.js library not loaded. Check your internet connection.');
     }
     
-    updateProgress(90, 'Creating semantic index...', `${knowledgeBase.length} articles loaded`);
+    const pipelineFn = window.pipeline || (transformers && transformers.pipeline);
+    if (!pipelineFn) {
+      throw new Error('Pipeline function not available. Library may have loaded incorrectly.');
+    }
     
-    // Pre-compute embeddings for all articles
-    if (extractor && knowledgeBase.length > 0) {
-      const articleTexts = knowledgeBase.map(a => `${a.heading}\n${a.content}\n${a.keywords}`);
-      const embeddings = [];
-      
-      for (let i = 0; i < articleTexts.length; i++) {
-        const emb = await extractor(articleTexts[i], { pooling: 'mean', normalize: true });
-        embeddings.push(Array.from(emb.data));
-        const percent = 90 + Math.floor((i + 1) / articleTexts.length * 10);
-        updateProgress(percent, 'Indexing...', `${i + 1}/${articleTexts.length} articles`);
+    updateProgress(30, 'Downloading AI model (23 MB)...', 'This happens once per browser');
+    
+    // Load embedding model
+    extractor = await pipelineFn('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+      progress_callback: (data) => {
+        if (data.status === 'downloading') {
+          const prog = 30 + (data.progress || 0) * 30;
+          updateProgress(prog, 'Downloading AI model...', `${Math.round((data.progress || 0) * 100)}%`);
+        }
       }
-      
+    });
+    
+    updateProgress(60, 'Loading Q&A model (67 MB)...', 'This happens once per browser');
+    
+    // Load QA model
+    qaModel = await pipelineFn('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad', {
+      progress_callback: (data) => {
+        if (data.status === 'downloading') {
+          const prog = 60 + (data.progress || 0) * 30;
+          updateProgress(prog, 'Loading Q&A model...', `${Math.round((data.progress || 0) * 100)}%`);
+        }
+      }
+    });
+    
+    updateProgress(90, 'Creating search index...', 'Preparing knowledge base');
+    
+    // Create embeddings for all articles
+    if (extractor && knowledgeBase.length > 0) {
+      const embeddings = [];
+      for (let i = 0; i < knowledgeBase.length; i++) {
+        const text = `${knowledgeBase[i].heading}\n${knowledgeBase[i].content}\n${knowledgeBase[i].keywords}`;
+        const emb = await extractor(text, { pooling: 'mean', normalize: true });
+        embeddings.push(Array.from(emb.data));
+        const prog = 90 + Math.floor((i + 1) / knowledgeBase.length * 10);
+        updateProgress(prog, 'Indexing...', `${i + 1}/${knowledgeBase.length} articles`);
+      }
       articleEmbeddings = embeddings;
     }
     
     updateProgress(100, 'Ready!', 'You can now ask questions');
+    modelsLoaded = true;
     
     setTimeout(() => {
-      document.getElementById('loadingOverlay').style.display = 'none';
-      modelsLoaded = true;
-      addMessage("✅ Ready! Ask me anything about Tetr.", false);
+      hideOverlay();
     }, 500);
     
   } catch(error) {
-    console.error('CSV loading error:', error);
-    updateProgress(100, 'Error loading data', 'Using sample data');
-    
-    // Fallback sample data
-    knowledgeBase = [
-      { heading: "Tetr College of Business", content: "A new-age business school where students build businesses across 7 countries.", keywords: "tetr college business global", category: "about" },
-      { heading: "Founder", content: "Pratham Mittal, alumnus of Wharton and The Doon School.", keywords: "pratham mittal founder wharton", category: "about" }
-    ];
-    
-    setTimeout(() => {
-      document.getElementById('loadingOverlay').style.display = 'none';
-      modelsLoaded = true;
-      addMessage("✅ Ready! (Using sample data - CSV failed to load)", false);
-    }, 1000);
+    console.error('Model loading error:', error);
+    showError(error.message || 'Failed to load AI models');
+    throw error;
   }
 }
 
@@ -395,35 +438,43 @@ async function loadKnowledgeBase() {
 // SEMANTIC SEARCH
 // ============================================================
 function cosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB) return 0;
   let dot = 0, magA = 0, magB = 0;
   for (let i = 0; i < vecA.length; i++) {
     dot += vecA[i] * vecB[i];
     magA += vecA[i] * vecA[i];
     magB += vecB[i] * vecB[i];
   }
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB) + 0.000001);
 }
 
 async function semanticSearch(question) {
   if (!extractor || !articleEmbeddings || knowledgeBase.length === 0) return [];
   
-  const qEmb = await extractor(question, { pooling: 'mean', normalize: true });
-  const qEmbArray = Array.from(qEmb.data);
-  
-  const scores = [];
-  for (let i = 0; i < articleEmbeddings.length; i++) {
-    scores.push({ index: i, score: cosineSimilarity(qEmbArray, articleEmbeddings[i]) });
+  try {
+    const qEmb = await extractor(question, { pooling: 'mean', normalize: true });
+    const qArray = Array.from(qEmb.data);
+    
+    const scores = [];
+    for (let i = 0; i < articleEmbeddings.length; i++) {
+      scores.push({ index: i, score: cosineSimilarity(qArray, articleEmbeddings[i]) });
+    }
+    
+    scores.sort((a, b) => b.score - a.score);
+    return scores.slice(0, 3).filter(s => s.score > 0.15).map(s => knowledgeBase[s.index]);
+  } catch(e) {
+    console.warn('Search error:', e);
+    return [];
   }
-  
-  scores.sort((a, b) => b.score - a.score);
-  return scores.slice(0, 3).filter(s => s.score > 0.2).map(s => knowledgeBase[s.index]);
 }
 
 async function extractAnswer(question, context) {
   if (!qaModel) return null;
   try {
-    return await qaModel({ question, context: context.substring(0, 2000) });
+    const truncatedContext = context.substring(0, 1500);
+    return await qaModel({ question, context: truncatedContext });
   } catch(e) {
+    console.warn('QA error:', e);
     return null;
   }
 }
@@ -439,6 +490,8 @@ function addMessage(text, isUser) {
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
+
+let typingTimeout = null;
 
 function showTyping() {
   const container = document.getElementById('chatMessages');
@@ -461,29 +514,30 @@ function resetChat() {
 }
 
 async function askQuestion() {
-  const question = document.getElementById('questionInput').value.trim();
+  const input = document.getElementById('questionInput');
+  const question = input.value.trim();
   if (!question) return;
   
   addMessage(question, true);
-  document.getElementById('questionInput').value = '';
+  input.value = '';
   showTyping();
   
-  if (!modelsLoaded || !extractor) {
+  if (!modelsLoaded || !extractor || !qaModel) {
     removeTyping();
-    addMessage("AI models are still loading. Please wait...", false);
+    addMessage("AI models are still loading. Please wait a moment and try again.", false);
     return;
   }
   
   try {
     const relevant = await semanticSearch(question);
     
-    if (!relevant || relevant.length === 0) {
+    if (!relevant.length) {
       removeTyping();
-      addMessage("I couldn't find information about that. Try asking about programs, founder, or Tetr Tribe.", false);
+      addMessage("I couldn't find specific information about that. Try asking about programs, founder, or Tetr Tribe.", false);
       return;
     }
     
-    let context = relevant.map(r => `[${r.heading}]\n${r.content}`).join('\n\n');
+    const context = relevant.map(r => `[${r.heading}]\n${r.content}`).join('\n\n');
     const answer = await extractAnswer(question, context);
     
     removeTyping();
@@ -493,13 +547,21 @@ async function askQuestion() {
       response += `${answer.answer}<br><br>`;
       response += `<span style="font-size: 11px; color: #009C50;">✓ Confidence: ${Math.round(answer.score * 100)}%</span>`;
     } else {
-      response += relevant[0].content.substring(0, 500);
+      response += relevant[0].content.substring(0, 600);
+      if (relevant[0].content.length > 600) response += '...';
+    }
+    
+    if (relevant.length > 1) {
+      response += `<br><br><hr><strong>🔗 Also relevant:</strong><br>`;
+      relevant.slice(1).forEach(r => {
+        response += `• ${r.heading}<br>`;
+      });
     }
     
     addMessage(response, false);
     
-  } catch(err) {
-    console.error(err);
+  } catch(error) {
+    console.error('Ask error:', error);
     removeTyping();
     addMessage("Sorry, I encountered an error. Please try again.", false);
   }
@@ -509,10 +571,12 @@ async function askQuestion() {
 // INITIALIZATION
 // ============================================================
 async function init() {
-  await loadAIModels();
+  updateProgress(0, 'Starting...', 'Initializing system');
   await loadKnowledgeBase();
+  await loadAIModels();
 }
 
+// Start when page loads
 window.onload = init;
 </script>
 </body>
