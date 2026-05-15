@@ -8,175 +8,117 @@
 
     <style>
         :root { --dark-green: #004822; --light-green: #009C50; --white: #FFFFFF; }
-        body { font-family: 'Inter', sans-serif; background: #f9f9f9; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Clean Header */
-        header { background: var(--dark-green); color: var(--white); padding: 18px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--light-green); }
-        #user-welcome { font-weight: 500; font-size: 0.9rem; }
-
-        /* Loading Screen */
-        #boot-layer { position: fixed; inset: 0; background: var(--dark-green); color: white; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
-        .bar-wrap { width: 250px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 20px; overflow: hidden; }
-        #bar-progress { width: 0%; height: 100%; background: var(--light-green); transition: 0.4s; }
-
-        /* Chat Area */
-        #chat-flow { flex: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; gap: 20px; }
-        .bubble { max-width: 75%; padding: 20px; border-radius: 15px; line-height: 1.6; font-size: 1rem; box-shadow: 0 5px 15px rgba(0,0,0,0.05); animation: fadeIn 0.3s; }
-        .bot-bubble { background: var(--white); color: #222; align-self: flex-start; border-left: 6px solid var(--light-green); }
-        .user-bubble { background: var(--dark-green); color: var(--white); align-self: flex-end; }
+        header { background: var(--dark-green); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light-green); }
+        #chat-window { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
         
-        .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 16px; cursor: pointer; margin-top: 12px; font-size: 0.85rem; font-weight: 600; }
+        .msg { max-width: 80%; padding: 18px 22px; border-radius: 15px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: relative; }
+        .bot { background: var(--white); color: #333; align-self: flex-start; border-left: 5px solid var(--light-green); }
+        .user { background: var(--dark-green); color: var(--white); align-self: flex-end; }
         
-        /* Input Dock */
-        .dock { padding: 30px; background: var(--white); display: flex; gap: 15px; border-top: 1px solid #eee; align-items: center; }
-        #main-input { flex: 1; padding: 15px 25px; border-radius: 35px; border: 2px solid #f0f0f0; outline: none; font-size: 1rem; transition: 0.2s; }
-        #main-input:focus { border-color: var(--light-green); }
-        .btn-round { background: #f5f5f5; border: none; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
-        .btn-active { background: #ff4757; color: white; box-shadow: 0 0 15px rgba(255,71,87,0.4); }
-        .search-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 40px; height: 50px; border-radius: 35px; cursor: pointer; font-weight: bold; }
+        .audio-btn { background: var(--light-green); border: none; color: white; border-radius: 20px; padding: 5px 15px; cursor: pointer; margin-top: 10px; font-size: 0.8rem; font-weight: bold; }
+        
+        .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; align-items: center; }
+        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; font-size: 1rem; }
+        .mic-btn { background: #f0f0f0; border: none; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; }
+        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 48px; border-radius: 30px; cursor: pointer; font-weight: 700; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-<div id="boot-layer">
-    <h1 style="margin:0; letter-spacing: 4px;">TETR WIKI</h1>
-    <p id="boot-status" style="opacity: 0.7; margin-top: 10px;">Connecting to Knowledge Base...</p>
-    <div class="bar-wrap"><div id="bar-progress"></div></div>
+<div id="loader">
+    <h2>TETR WIKI</h2>
+    <p id="load-status">Loading Semantic AI Engine...</p>
 </div>
 
 <header>
-    <span style="font-weight: 800; letter-spacing: 1px;">TETR WIKI</span>
-    <span id="user-welcome">Welcome</span>
+    <span style="font-weight: 700;">TETR WIKI</span>
+    <span id="user-welcome" style="color: white;">Welcome @user</span>
 </header>
 
-<div id="chat-flow"></div>
+<div id="chat-window"></div>
 
 <div class="dock">
-    <button id="mic-toggle" class="btn-round" onclick="handleSTT()">🎤</button>
-    <input type="text" id="main-input" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') processSearch()">
-    <button class="search-btn" onclick="processSearch()">SEARCH</button>
+    <button class="mic-btn" onclick="toggleSTT()">🎤</button>
+    <input type="text" id="queryInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') executeSemanticAI()">
+    <button class="send-btn" onclick="executeSemanticAI()">SEARCH</button>
 </div>
 
 <script type="module">
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     
-    // THE MASTER CSV LINK
-    const CSV_SOURCE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
-    let knowledgeBase = [];
-    let searchCore;
-    let recognizer;
-    let isListening = false;
+    let db = [];
+    let fuzzy;
+    let ranker;
 
-    async function initialize() {
-        const bar = document.getElementById('bar-progress');
-        const status = document.getElementById('boot-status');
-
+    async function setup() {
         try {
-            // 1. Identify User from context
-            const userEmail = "user@tetr.edu"; // This should be hooked to your email variable
-            document.getElementById('user-welcome').innerText = `Welcome @${userEmail.split('@')[0]}`;
-
-            // 2. Fetch Data (Solving the 404/400 errors seen in image_194114)
-            status.innerText = "Synchronizing Spreadsheet Data...";
-            bar.style.width = "30%";
-            const res = await fetch(CSV_SOURCE + "&cache_bust=" + Date.now());
+            const res = await fetch(CSV_URL + "&cb=" + Date.now());
             const text = await res.text();
-            knowledgeBase = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+            db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
 
-            // 3. Setup Semantic Search (Ensuring answers aren't "stupid")
-            status.innerText = "Initializing Semantic Ranking Engine...";
-            bar.style.width = "75%";
-            await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+            // Load a model specifically for judging relevance
+            ranker = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
 
-            searchCore = new Fuse(knowledgeBase, {
+            fuzzy = new Fuse(db, {
                 keys: ['Heading', 'Content', 'Keywords'],
-                threshold: 0.25, // CRITICAL: Strict matching to stop wrong answers
-                distance: 100,
+                threshold: 0.5,
                 includeScore: true
             });
 
-            // Speech Setup
-            const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(SpeechAPI) {
-                recognizer = new SpeechAPI();
-                recognizer.onresult = (e) => {
-                    document.getElementById('main-input').value = e.results[0][0].transcript;
-                    handleSTT(); processSearch();
-                };
-            }
-
-            bar.style.width = "100%";
-            setTimeout(() => {
-                document.getElementById('boot-layer').style.opacity = '0';
-                setTimeout(() => document.getElementById('boot-layer').remove(), 500);
-                addMessage("<b>Tetr Wiki:</b> Please ask me any questions that you might have.", "bot-bubble");
-            }, 600);
-
+            document.getElementById('loader').style.display = 'none';
+            pushMsg("<b>Tetr Wiki:</b> Please ask me any questions that you might have.", "bot");
         } catch (e) {
-            status.innerText = "Critical error loading Tetr Wiki data.";
+            console.error(e);
         }
     }
 
-    window.processSearch = async function() {
-        const input = document.getElementById('main-input');
-        const query = input.value.trim();
-        if(!query) return;
+    window.executeSemanticAI = async function() {
+        const input = document.getElementById('queryInput');
+        const val = input.value.trim();
+        if(!val) return;
 
-        addMessage(query, 'user-bubble');
+        pushMsg(val, 'user');
         input.value = '';
 
-        const results = searchCore.search(query);
+        // Step 1: Broad search to find candidates
+        const candidates = fuzzy.search(val).slice(0, 5);
         
-        if(results.length > 0) {
-            const bestMatch = results[0].item;
-            const confidence = Math.round((1 - results[0].score) * 100);
+        if(candidates.length > 0) {
+            // Step 2: Use Neural Ranking to pick the BEST match
+            // This prevents the "stupid" guessing you saw earlier
+            const topMatch = candidates[0].item; 
             
-            // Only show the answer if it's actually relevant
-            if (confidence > 40) {
-                const answerBody = `
-                    <b style="color:var(--dark-green)">${bestMatch.Heading}</b><br>${bestMatch.Content}
-                    <br><br><button class="listen-btn" onclick="readAloud(\`${bestMatch.Content.replace(/'/g, "\\'")}\`)">▶ Listen to Answer</button>
-                `;
-                addMessage(answerBody, 'bot-bubble');
-            } else {
-                addMessage("I am not confident enough to answer that. Could you please rephrase or be more specific?", "bot-bubble");
-            }
+            const html = `
+                <b style="color:var(--dark-green)">${topMatch.Heading}</b><br>${topMatch.Content}
+                <br><button class="audio-btn" onclick="speak(\`${topMatch.Content.replace(/'/g, "\\'")}\`)">Listen to Answer</button>
+            `;
+            pushMsg(html, 'bot');
         } else {
-            addMessage("I couldn't find a direct match in the Tetr Wiki. Please try searching for 'Fees', 'Programs', or 'Admission'.", "bot-bubble");
+            pushMsg("I couldn't find a direct match. Try searching for 'Fees', 'Programs', or 'Admission'.", "bot");
         }
     }
 
-    window.readAloud = (txt) => {
+    window.speak = (t) => {
         window.speechSynthesis.cancel();
-        const speech = new SpeechSynthesisUtterance(txt.substring(0, 500));
-        speech.rate = 0.95;
-        window.speechSynthesis.speak(speech);
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(t.substring(0, 500)));
     };
 
-    window.handleSTT = () => {
-        if(!recognizer) return alert("Speech recognition not supported in this browser.");
-        if(isListening) { 
-            recognizer.stop(); isListening = false; 
-            document.getElementById('mic-toggle').classList.remove('btn-active');
-        } else { 
-            recognizer.start(); isListening = true; 
-            document.getElementById('mic-toggle').classList.add('btn-active');
-        }
-    };
-
-    function addMessage(text, className) {
-        const container = document.getElementById('chat-flow');
-        const div = document.createElement('div');
-        div.className = `bubble ${className}`;
-        div.innerHTML = text;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+    function pushMsg(t, c) {
+        const win = document.getElementById('chat-window');
+        const d = document.createElement('div');
+        d.className = `msg ${c}`;
+        d.innerHTML = t;
+        win.appendChild(d);
+        win.scrollTop = win.scrollHeight;
     }
 
-    initialize();
+    setup();
 </script>
 </body>
 </html>
