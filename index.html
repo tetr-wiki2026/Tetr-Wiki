@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>TETR WIKI</title>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
     <style>
@@ -11,96 +10,115 @@
         body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         header { background: var(--dark-green); color: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light-green); }
-        #chat-window { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
         
-        .msg { max-width: 80%; padding: 18px 22px; border-radius: 15px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: relative; }
-        .bot { background: var(--white); color: #333; align-self: flex-start; border-left: 5px solid var(--light-green); }
+        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid var(--light-green); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #chat-window { flex: 1; overflow-y: auto; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
+        .msg { max-width: 80%; padding: 18px 22px; border-radius: 15px; font-size: 1rem; line-height: 1.6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .bot { background: var(--white); color: #333; align-self: flex-start; border-left: 6px solid var(--light-green); }
         .user { background: var(--dark-green); color: var(--white); align-self: flex-end; }
         
-        .audio-btn { background: var(--light-green); border: none; color: white; border-radius: 20px; padding: 5px 15px; cursor: pointer; margin-top: 10px; font-size: 0.8rem; font-weight: bold; }
+        .listen-btn { background: var(--light-green); color: white; border: none; border-radius: 20px; padding: 6px 15px; cursor: pointer; margin-top: 10px; font-weight: bold; }
         
-        .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; align-items: center; }
-        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; font-size: 1rem; }
-        .mic-btn { background: #f0f0f0; border: none; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; }
-        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; height: 48px; border-radius: 30px; cursor: pointer; font-weight: 700; }
-
-        #loader { position: fixed; inset: 0; background: var(--dark-green); color: var(--white); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .dock { padding: 25px; background: var(--white); display: flex; gap: 12px; border-top: 1px solid #eee; }
+        input { flex: 1; padding: 14px 25px; border-radius: 30px; border: 2px solid #eee; outline: none; }
+        .send-btn { background: var(--dark-green); color: var(--white); border: none; padding: 0 35px; border-radius: 30px; cursor: pointer; font-weight: 700; }
     </style>
 </head>
 <body>
 
 <div id="loader">
-    <h2>TETR WIKI</h2>
-    <p id="load-status">Loading Semantic AI Engine...</p>
+    <div class="spinner"></div>
+    <h2 style="margin-top:20px;">TETR WIKI</h2>
+    <p id="status">Encoding Semantic Knowledge...</p>
 </div>
 
 <header>
     <span style="font-weight: 700;">TETR WIKI</span>
-    <span id="user-welcome" style="color: white;">Welcome @user</span>
+    <span id="user-display" style="color: white;">Welcome @user</span>
 </header>
 
 <div id="chat-window"></div>
 
 <div class="dock">
-    <button class="mic-btn" onclick="toggleSTT()">🎤</button>
-    <input type="text" id="queryInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') executeSemanticAI()">
-    <button class="send-btn" onclick="executeSemanticAI()">SEARCH</button>
+    <input type="text" id="userInput" placeholder="Please ask me any questions that you might have" onkeypress="if(event.key==='Enter') searchAI()">
+    <button class="send-btn" onclick="searchAI()">SEARCH</button>
 </div>
 
 <script type="module">
-    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
     
+    // Using your verified CSV link
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Sal0jQpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
     
     let db = [];
-    let fuzzy;
-    let ranker;
+    let embedder;
+    let dbEmbeddings = [];
 
-    async function setup() {
+    async function init() {
         try {
-            const res = await fetch(CSV_URL + "&cb=" + Date.now());
+            // 1. Fetch Data
+            const res = await fetch(CSV_URL + "&v=" + Date.now());
             const text = await res.text();
             db = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
 
-            // Load a model specifically for judging relevance
-            ranker = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+            // 2. Load the actual AI model (Xenova/all-MiniLM-L6-v2)
+            // This replaces Fuse entirely.
+            embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
 
-            fuzzy = new Fuse(db, {
-                keys: ['Heading', 'Content', 'Keywords'],
-                threshold: 0.5,
-                includeScore: true
-            });
-
+            // 3. Pre-calculate embeddings for the spreadsheet (Semantic Preparation)
+            // In a small sheet, we can do this on the fly.
             document.getElementById('loader').style.display = 'none';
-            pushMsg("<b>Tetr Wiki:</b> Please ask me any questions that you might have.", "bot");
+            addMsg("<b>Tetr Wiki:</b> Please ask me any questions that you might have.", "bot");
+            
         } catch (e) {
-            console.error(e);
+            document.getElementById('status').innerText = "Sync Error: Check CSV Link";
         }
     }
 
-    window.executeSemanticAI = async function() {
-        const input = document.getElementById('queryInput');
-        const val = input.value.trim();
-        if(!val) return;
+    // Mathematical Dot Product to find conceptual similarity
+    function similarity(a, b) {
+        return a.reduce((sum, val, i) => sum + val * b[i], 0);
+    }
 
-        pushMsg(val, 'user');
+    window.searchAI = async function() {
+        const input = document.getElementById('userInput');
+        const query = input.value.trim();
+        if(!query) return;
+
+        addMsg(query, 'user');
         input.value = '';
 
-        // Step 1: Broad search to find candidates
-        const candidates = fuzzy.search(val).slice(0, 5);
-        
-        if(candidates.length > 0) {
-            // Step 2: Use Neural Ranking to pick the BEST match
-            // This prevents the "stupid" guessing you saw earlier
-            const topMatch = candidates[0].item; 
+        // Generate a "thought vector" for the user's question
+        const output = await embedder(query, { pooling: 'mean', normalize: true });
+        const queryVector = Array.from(output.data);
+
+        let bestMatch = null;
+        let maxSim = -1;
+
+        // Loop through the data and find the conceptual match
+        for (let row of db) {
+            const combinedText = `${row.Heading} ${row.Content} ${row.Keywords || ''}`;
+            const rowOutput = await embedder(combinedText, { pooling: 'mean', normalize: true });
+            const rowVector = Array.from(rowOutput.data);
             
+            const sim = similarity(queryVector, rowVector);
+            if (sim > maxSim) {
+                maxSim = sim;
+                bestMatch = row;
+            }
+        }
+
+        if (bestMatch && maxSim > 0.5) {
             const html = `
-                <b style="color:var(--dark-green)">${topMatch.Heading}</b><br>${topMatch.Content}
-                <br><button class="audio-btn" onclick="speak(\`${topMatch.Content.replace(/'/g, "\\'")}\`)">Listen to Answer</button>
+                <b style="color:var(--dark-green)">${bestMatch.Heading}</b><br>${bestMatch.Content}
+                <br><button class="listen-btn" onclick="speak(\`${bestMatch.Content.replace(/'/g, "\\'")}\`)">Listen to Answer</button>
             `;
-            pushMsg(html, 'bot');
+            addMsg(html, 'bot');
         } else {
-            pushMsg("I couldn't find a direct match. Try searching for 'Fees', 'Programs', or 'Admission'.", "bot");
+            addMsg("I'm sorry, I couldn't find a conceptually close answer in the Wiki. Please try rephrasing.", "bot");
         }
     }
 
@@ -109,7 +127,7 @@
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(t.substring(0, 500)));
     };
 
-    function pushMsg(t, c) {
+    function addMsg(t, c) {
         const win = document.getElementById('chat-window');
         const d = document.createElement('div');
         d.className = `msg ${c}`;
@@ -118,7 +136,7 @@
         win.scrollTop = win.scrollHeight;
     }
 
-    setup();
+    init();
 </script>
 </body>
 </html>
