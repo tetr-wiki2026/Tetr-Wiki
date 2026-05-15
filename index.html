@@ -2,646 +2,225 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>TETR AI WIKI - Smart Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TETR WIKI - DEBUG VERSION</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.0/builds/compromise.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/langdetect@1.1.0/build/langdetect.min.js"></script>
-    <script type="importmap">
-        {
-            "imports": {
-                "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"
-            }
-        }
-    </script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
-            background: #FFFFFF;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .loader-overlay {
-            position: fixed;
-            inset: 0;
-            background: #004822;
-            color: white;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-            transition: opacity 0.5s ease;
-            overflow-y: auto;
-        }
-
-        .loader-logo {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            color: #FFFFFF;
-            background: #009C50;
-            padding: 0.5rem 2rem;
-            border-radius: 60px;
-        }
-
-        .progress-container {
-            width: 80%;
-            max-width: 400px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 30px;
-            height: 10px;
-            margin: 1.5rem 0;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            width: 0%;
-            height: 100%;
-            background: #009C50;
-            transition: width 0.3s ease;
-        }
-
-        .status-text {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-top: 0.5rem;
-        }
-
-        .debug-info {
-            font-size: 0.7rem;
-            opacity: 0.7;
-            margin-top: 1rem;
-            max-width: 500px;
-            word-break: break-all;
-            background: rgba(255,255,255,0.1);
-            padding: 0.8rem;
-            border-radius: 8px;
-            text-align: left;
-        }
-
-        header {
-            background: #004822;
-            color: white;
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            border-bottom: 3px solid #009C50;
-        }
-
-        .logo {
-            font-weight: bold;
-            font-size: 1.3rem;
-            letter-spacing: 1px;
-        }
-
-        .badge {
-            background: #009C50;
-            padding: 0.2rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: normal;
-        }
-
-        .chat-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            background: #FFFFFF;
-        }
-
-        .message {
-            max-width: 85%;
-            padding: 0.8rem 1.2rem;
-            border-radius: 1.2rem;
-            line-height: 1.5;
-            font-size: 0.95rem;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
-
-        .bot {
-            background: #f0f2f5;
-            color: #1e2a3e;
-            align-self: flex-start;
-            border-left: 4px solid #009C50;
-            border-radius: 1rem 1rem 1rem 0.3rem;
-        }
-
-        .user {
-            background: #009C50;
-            color: white;
-            align-self: flex-end;
-            border-radius: 1rem 1rem 0.3rem 1rem;
-        }
-
-        .confidence {
-            font-size: 0.7rem;
-            margin-top: 6px;
-            opacity: 0.7;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .suggestions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-            margin: 0.5rem 0;
-            padding: 0 0.5rem;
-        }
-
-        .suggestion-chip {
-            background: #e9ecef;
-            padding: 0.4rem 1rem;
-            border-radius: 40px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: #004822;
-            font-weight: 500;
-        }
-
-        .suggestion-chip:hover {
-            background: #009C50;
-            color: white;
-        }
-
-        .input-panel {
-            background: white;
-            border-top: 1px solid #e2e8f0;
-            padding: 1rem;
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .input-wrapper {
-            flex: 1;
-            display: flex;
-            gap: 0.5rem;
-            background: #f8fafc;
-            border-radius: 60px;
-            padding: 0.2rem 0.2rem 0.2rem 1rem;
-            border: 1px solid #cbd5e1;
-        }
-
-        input {
-            flex: 1;
-            padding: 0.8rem 0.2rem;
-            border: none;
-            background: transparent;
-            outline: none;
-            font-size: 1rem;
-        }
-
-        button {
-            background: #004822;
-            border: none;
-            color: white;
-            padding: 0.5rem 1.2rem;
-            border-radius: 40px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        button:hover {
-            background: #009C50;
-        }
-
-        .voice-btn {
-            background: #e2e8f0;
-            color: #004822;
-            font-size: 1.2rem;
-            padding: 0.5rem 1rem;
-        }
-
-        .voice-btn.listening {
-            background: #009C50;
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            100% { opacity: 1; }
-        }
-
-        footer {
-            font-size: 0.7rem;
-            text-align: center;
-            background: #f1f5f9;
-            padding: 0.3rem;
-            color: #334155;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: monospace; background: #004822; height: 100vh; display: flex; flex-direction: column; }
         
-        .cache-status {
-            font-size: 0.65rem;
-            margin-top: 0.5rem;
-            color: #009C50;
-        }
+        header { background: #004822; color: #009C50; padding: 1rem; border-bottom: 2px solid #009C50; }
+        .chat-area { flex: 1; overflow-y: auto; padding: 1rem; background: white; }
+        .message { padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px; }
+        .user { background: #009C50; color: white; text-align: right; }
+        .bot { background: #e0e0e0; color: #004822; border-left: 4px solid #009C50; }
+        .debug-panel { background: #1a1a1a; color: #0f0; padding: 0.5rem; font-size: 0.7rem; max-height: 150px; overflow-y: auto; font-family: monospace; }
+        .input-area { padding: 1rem; background: white; display: flex; gap: 0.5rem; }
+        input { flex: 1; padding: 0.5rem; border: 1px solid #004822; border-radius: 4px; }
+        button { background: #004822; color: white; padding: 0.5rem 1rem; border: none; cursor: pointer; }
+        .status { background: #009C50; color: white; padding: 0.3rem; font-size: 0.8rem; text-align: center; }
     </style>
 </head>
 <body>
 
-<div id="loader" class="loader-overlay">
-    <div class="loader-logo">⚡ TETR INTELLIGENCE</div>
-    <p id="loading-message">Initializing AI engines ...</p>
-    <div class="progress-container"><div id="progressFill" class="progress-fill"></div></div>
-    <div id="status-detail" class="status-text">Preparing environment</div>
-    <div id="cacheStatus" class="cache-status"></div>
-    <div id="debugInfo" class="debug-info"></div>
-</div>
-
 <header>
-    <span class="logo">TETR WIKI <span class="badge">AI v5.0</span></span>
-    <span style="font-size:0.8rem;">Multilingual • Semantic</span>
+    <h2>TETR WIKI - DEBUG MODE</h2>
 </header>
 
-<div class="suggestions" id="suggestionsArea"></div>
+<div class="status" id="statusBar">Initializing...</div>
 
-<div id="chat" class="chat-area"></div>
+<div class="chat-area" id="chat"></div>
 
-<div class="input-panel">
-    <div class="input-wrapper">
-        <input type="text" id="userInput" placeholder="Ask about programs, admission, founders..." autocomplete="off">
-        <button id="voiceBtn" class="voice-btn" title="Voice input">🎤</button>
-    </div>
-    <button id="askBtn">Ask ➤</button>
+<div class="debug-panel" id="debugPanel">
+    📡 Debug console will appear here<br>
 </div>
-<footer>⚡ Confidence scoring | Context memory | Cached AI models & CSV (Cache Storage API)</footer>
 
-<script type="module">
-    import { pipeline } from '@xenova/transformers';
-    
+<div class="input-area">
+    <input type="text" id="userInput" placeholder="Ask a question..." onkeypress="if(event.key==='Enter') ask()">
+    <button onclick="ask()">ASK</button>
+    <button onclick="clearDebug()" style="background:#666;">Clear Debug</button>
+</div>
+
+<script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT9YBoA31_bAI48Dx0Salj0Qpxr6T9V2u7Ry5pnR6R0sCuAaUGSS4skKo-VnkQrJqwylclRylm4zMCW/pub?gid=0&single=true&output=csv";
-    const CACHE_NAME = 'tetr-csv-cache-v1';
-    const CSV_CACHE_KEY = 'tetr-knowledge-base';
     
-    // Global state
     let knowledgeBase = [];
     let fuseIndex = null;
-    let embedder = null;
-    let conversationMemory = [];
-    let responseCache = new Map();
-    let columnMap = { title: null, content: null, keywords: null, category: null };
+    let columnNames = [];
     
-    // UI Elements
-    const chatContainer = document.getElementById('chat');
-    const userInput = document.getElementById('userInput');
-    const askBtn = document.getElementById('askBtn');
-    const voiceBtn = document.getElementById('voiceBtn');
-    const loaderDiv = document.getElementById('loader');
-    const progressFill = document.getElementById('progressFill');
-    const statusDetail = document.getElementById('status-detail');
-    const loadingMsg = document.getElementById('loading-message');
-    const suggestionsArea = document.getElementById('suggestionsArea');
-    const debugInfo = document.getElementById('debugInfo');
-    const cacheStatus = document.getElementById('cacheStatus');
-    
-    let recognition = null;
-    let isListening = false;
-    
-    function setProgress(percent, message, detail) {
-        progressFill.style.width = `${percent}%`;
-        if(message) loadingMsg.innerText = message;
-        if(detail) statusDetail.innerText = detail;
+    function logToDebug(message, isError = false) {
+        const debugPanel = document.getElementById('debugPanel');
+        const timestamp = new Date().toLocaleTimeString();
+        const color = isError ? '#ff6b6b' : '#0f0';
+        debugPanel.innerHTML += `<div style="color: ${color}; border-top: 1px solid #333; padding: 2px 0;">[${timestamp}] ${message}</div>`;
+        debugPanel.scrollTop = debugPanel.scrollHeight;
+        console.log(message);
     }
     
-    function addMessage(text, sender, confidenceScore = null, lang = null) {
+    function updateStatus(message, isError = false) {
+        const statusBar = document.getElementById('statusBar');
+        statusBar.innerHTML = message;
+        statusBar.style.background = isError ? '#c0392b' : '#009C50';
+        logToDebug(`STATUS: ${message}`, isError);
+    }
+    
+    function addMessage(text, sender) {
+        const chat = document.getElementById('chat');
         const div = document.createElement('div');
         div.className = `message ${sender}`;
-        let content = text;
-        if(confidenceScore !== null && sender === 'bot') {
-            content += `<div class="confidence">🔍 Confidence: ${Math.round(confidenceScore * 100)}% ${lang ? ` | 🌐 ${lang.toUpperCase()}` : ''}</div>`;
-        }
-        div.innerHTML = content;
-        chatContainer.appendChild(div);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        div.innerHTML = text;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
     }
     
-    // Cache Storage API - Store CSV response
-    async function storeCSVInCache(csvText) {
+    async function loadCSV() {
+        updateStatus("Loading CSV from Google Sheets...");
+        logToDebug(`Fetching: ${CSV_URL}`);
+        
         try {
-            const cache = await caches.open(CACHE_NAME);
-            const response = new Response(csvText, {
-                headers: { 'Content-Type': 'text/csv', 'Cache-Control': 'max-age=86400' }
+            // Direct fetch with no caching to test
+            const response = await fetch(CSV_URL, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
             });
-            await cache.put(CSV_CACHE_KEY, response);
-            cacheStatus.innerHTML = `✓ CSV stored in Cache Storage (${Math.round(csvText.length / 1024)} KB)`;
-            return true;
-        } catch (error) {
-            console.warn('Cache Storage failed:', error);
-            cacheStatus.innerHTML = `⚠️ Cache Storage unavailable, using localStorage fallback`;
-            return false;
-        }
-    }
-    
-    // Cache Storage API - Retrieve CSV
-    async function getCSVFromCache() {
-        try {
-            const cache = await caches.open(CACHE_NAME);
-            const response = await cache.match(CSV_CACHE_KEY);
-            if (response && response.ok) {
-                const csvText = await response.text();
-                cacheStatus.innerHTML = `✓ CSV retrieved from Cache Storage (${Math.round(csvText.length / 1024)} KB)`;
-                return csvText;
+            
+            logToDebug(`Response status: ${response.status} ${response.statusText}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-        } catch (error) {
-            console.warn('Cache read failed:', error);
-        }
-        return null;
-    }
-    
-    // Load CSV with Cache Storage API priority
-    async function loadAndParseCSV() {
-        setProgress(10, "Checking Cache Storage...", "Looking for cached CSV");
-        
-        let csvText = null;
-        
-        // Step 1: Try Cache Storage API first
-        csvText = await getCSVFromCache();
-        
-        // Step 2: If not in cache, fetch from network
-        if (!csvText) {
-            setProgress(20, "Fetching from Google Sheets...", "Downloading CSV (will cache after load)");
-            const response = await fetch(CSV_URL);
-            csvText = await response.text();
             
-            // Store in Cache Storage for next time
-            await storeCSVInCache(csvText);
-            cacheStatus.innerHTML += `<br>✓ CSV cached for future visits`;
-        } else {
-            setProgress(25, "Using cached CSV", "Parsing data");
-        }
-        
-        // Parse CSV
-        const result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        knowledgeBase = result.data;
-        
-        // Remove empty rows
-        knowledgeBase = knowledgeBase.filter(row => {
-            return Object.values(row).some(val => val && val.toString().trim().length > 0);
-        });
-        
-        // Detect column names
-        if (knowledgeBase.length > 0) {
-            const sampleRow = knowledgeBase[0];
-            const availableCols = Object.keys(sampleRow);
+            const csvText = await response.text();
+            logToDebug(`CSV downloaded: ${csvText.length} characters`);
             
-            columnMap.title = availableCols.find(c => c === 'Heading' || c.toLowerCase() === 'heading') || availableCols[1];
-            columnMap.content = availableCols.find(c => c === 'Content' || c.toLowerCase() === 'content') || availableCols[2];
-            columnMap.keywords = availableCols.find(c => c === 'Keywords' || c.toLowerCase() === 'keywords') || null;
-            columnMap.category = availableCols.find(c => c === 'Category' || c.toLowerCase() === 'category') || null;
+            // Show first 200 chars of raw CSV
+            logToDebug(`Raw CSV preview: ${csvText.substring(0, 200)}...`);
             
-            debugInfo.innerHTML = `
-                ✅ Loaded ${knowledgeBase.length} records from CSV<br>
-                📊 Columns: ${availableCols.join(', ')}<br>
-                🎯 Using: Title="${columnMap.title}", Content="${columnMap.content}"<br>
-                📝 Sample: "${sampleRow[columnMap.title]?.substring(0, 60) || 'N/A'}..."
-            `;
-            
-            // Also backup to localStorage for quick access
-            localStorage.setItem('tetr_csv_backup', JSON.stringify(knowledgeBase));
-            localStorage.setItem('tetr_column_map', JSON.stringify(columnMap));
-        }
-        
-        return true;
-    }
-    
-    async function loadModels() {
-        setProgress(45, "Loading all-MiniLM-L6-v2 (23MB)...", "This may take 10-20 seconds first time");
-        embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-        
-        setProgress(75, "Optimizing...", "Building search index");
-        
-        if(window.langdetect) {
-            try {
-                window.langdetect.init();
-            } catch(e) { console.warn("Langdetect init issue"); }
-        }
-    }
-    
-    function buildFuseIndex() {
-        const searchKeys = [columnMap.title, columnMap.content];
-        if(columnMap.keywords) searchKeys.push(columnMap.keywords);
-        if(columnMap.category) searchKeys.push(columnMap.category);
-        
-        fuseIndex = new Fuse(knowledgeBase, {
-            keys: searchKeys,
-            threshold: 0.4,
-            includeScore: true,
-            minMatchCharLength: 2,
-            ignoreLocation: true
-        });
-        
-        debugInfo.innerHTML += `<br>🔍 Fuse.js ready - searching ${knowledgeBase.length} documents across ${searchKeys.length} fields`;
-    }
-    
-    async function computeConfidence(question, fuseResult) {
-        let confidence = 0.3;
-        
-        if(fuseResult && fuseResult.score !== undefined) {
-            confidence = Math.max(0.2, 1 - (fuseResult.score / 2));
-        }
-        
-        if(embedder && fuseResult && fuseResult.item) {
-            try {
-                const contentText = fuseResult.item[columnMap.content] || fuseResult.item[columnMap.title] || "";
-                if(contentText.length > 10) {
-                    const qEmb = await embedder(question, { pooling: 'mean', normalize: true });
-                    const cEmb = await embedder(contentText.substring(0, 500), { pooling: 'mean', normalize: true });
-                    
-                    let similarity = 0;
-                    for(let i = 0; i < qEmb.data.length; i++) {
-                        similarity += qEmb.data[i] * cEmb.data[i];
-                    }
-                    confidence = (confidence + similarity) / 2;
-                }
-            } catch(e) { console.warn("Embedding error:", e); }
-        }
-        
-        return Math.min(0.98, Math.max(0.15, confidence));
-    }
-    
-    function detectLanguage(text) {
-        if(window.langdetect && window.langdetect.detect) {
-            try {
-                const detected = window.langdetect.detect(text);
-                if(detected && detected.length) return detected[0].lang;
-            } catch(e) {}
-        }
-        return 'en';
-    }
-    
-    async function getAnswer(question) {
-        const cacheKey = question.toLowerCase().trim();
-        if(responseCache.has(cacheKey)) {
-            return responseCache.get(cacheKey);
-        }
-        
-        if(!fuseIndex || knowledgeBase.length === 0) {
-            return { answer: "Knowledge base not loaded yet. Please wait.", confidence: 0.1 };
-        }
-        
-        const results = fuseIndex.search(question);
-        
-        if(results.length === 0) {
-            return { answer: "I couldn't find a specific match. Please try different keywords.", confidence: 0.2 };
-        }
-        
-        const best = results[0];
-        const item = best.item;
-        const title = item[columnMap.title] || "Information";
-        const content = item[columnMap.content] || "No detailed content available";
-        const keywords = columnMap.keywords ? item[columnMap.keywords] : null;
-        
-        let answerText = `<b>${title}</b><br><br>${content}`;
-        if(keywords && keywords.trim()) answerText += `<br><br><small>🔑 Related: ${keywords}</small>`;
-        
-        const confidence = await computeConfidence(question, best);
-        
-        const result = { answer: answerText, confidence: confidence };
-        responseCache.set(cacheKey, result);
-        return result;
-    }
-    
-    function updateSuggestedQuestions() {
-        if(knowledgeBase.length === 0) return;
-        
-        const titles = knowledgeBase.slice(0, 6).map(row => row[columnMap.title]).filter(t => t && t.length > 5);
-        const unique = [...new Set(titles)];
-        
-        suggestionsArea.innerHTML = unique.map(title => 
-            `<div class="suggestion-chip">📌 ${title}</div>`
-        ).join('');
-        
-        document.querySelectorAll('.suggestion-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                userInput.value = chip.innerText.replace('📌 ', '');
-                askBot();
+            // Parse CSV
+            const result = Papa.parse(csvText, { 
+                header: true, 
+                skipEmptyLines: true,
+                transformHeader: (h) => h.trim()
             });
-        });
+            
+            logToDebug(`PapaParse complete. Errors: ${result.errors.length}`);
+            
+            if (result.errors.length > 0) {
+                logToDebug(`Parse errors: ${JSON.stringify(result.errors[0])}`, true);
+            }
+            
+            knowledgeBase = result.data;
+            logToDebug(`Rows parsed: ${knowledgeBase.length}`);
+            
+            if (knowledgeBase.length === 0) {
+                throw new Error("CSV is empty or parsing failed");
+            }
+            
+            // Get column names
+            columnNames = Object.keys(knowledgeBase[0]);
+            logToDebug(`Columns found: ${columnNames.join(', ')}`);
+            
+            // Show first row
+            logToDebug(`First row sample: ${JSON.stringify(knowledgeBase[0]).substring(0, 300)}`);
+            
+            // Filter out completely empty rows
+            const beforeFilter = knowledgeBase.length;
+            knowledgeBase = knowledgeBase.filter(row => {
+                return columnNames.some(col => row[col] && row[col].toString().trim().length > 0);
+            });
+            logToDebug(`After removing empty rows: ${knowledgeBase.length} (removed ${beforeFilter - knowledgeBase.length})`);
+            
+            if (knowledgeBase.length === 0) {
+                throw new Error("No valid data rows found");
+            }
+            
+            // Build Fuse index
+            const searchKeys = columnNames.filter(col => col !== 'ID');
+            logToDebug(`Building Fuse index with keys: ${searchKeys.join(', ')}`);
+            
+            fuseIndex = new Fuse(knowledgeBase, {
+                keys: searchKeys,
+                threshold: 0.4,
+                includeScore: true,
+                minMatchCharLength: 2
+            });
+            
+            updateStatus(`✅ Ready! Loaded ${knowledgeBase.length} records. Columns: ${columnNames.join(', ')}`);
+            addMessage(`✅ System ready! Loaded ${knowledgeBase.length} entries from your CSV.`, 'bot');
+            addMessage(`📊 Available columns: ${columnNames.join(', ')}`, 'bot');
+            addMessage(`💡 Try asking something like: "${knowledgeBase[0][columnNames[1]] || knowledgeBase[0][columnNames[0]]}"`, 'bot');
+            
+        } catch (error) {
+            logToDebug(`ERROR: ${error.message}`, true);
+            updateStatus(`❌ Error: ${error.message}`, true);
+            addMessage(`❌ Failed to load CSV: ${error.message}\n\nPlease check:\n1. The Google Sheet is public\n2. The URL is correct\n3. The CSV export is working`, 'bot');
+        }
     }
     
-    async function askBot() {
-        const question = userInput.value.trim();
-        if(!question) return;
+    function ask() {
+        const input = document.getElementById('userInput');
+        const question = input.value.trim();
         
-        addMessage(question, 'user');
-        userInput.value = '';
-        
-        const lang = detectLanguage(question);
-        const { answer, confidence } = await getAnswer(question);
-        
-        addMessage(answer, 'bot', confidence, lang);
-        
-        conversationMemory.unshift({ question, answer, timestamp: Date.now() });
-        if(conversationMemory.length > 10) conversationMemory.pop();
-    }
-    
-    function initVoice() {
-        if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            voiceBtn.style.opacity = '0.5';
-            voiceBtn.title = "Voice not supported";
+        if (!question) {
+            logToDebug("Empty question ignored");
             return;
         }
         
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
+        logToDebug(`User asked: "${question}"`);
+        addMessage(question, 'user');
+        input.value = '';
         
-        recognition.onstart = () => {
-            isListening = true;
-            voiceBtn.classList.add('listening');
-            voiceBtn.innerText = "🎙️";
-        };
-        
-        recognition.onend = () => {
-            isListening = false;
-            voiceBtn.classList.remove('listening');
-            voiceBtn.innerText = "🎤";
-        };
-        
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            userInput.value = transcript;
-            askBot();
-        };
-        
-        voiceBtn.onclick = () => {
-            if(isListening) {
-                recognition.stop();
-            } else {
-                try {
-                    recognition.start();
-                } catch(e) {
-                    console.error("Voice error");
-                }
-            }
-        };
-    }
-    
-    async function bootstrap() {
-        try {
-            // Load CSV (from Cache Storage API if available)
-            await loadAndParseCSV();
-            
-            setProgress(40, "Building search index...", "Creating Fuse.js index");
-            buildFuseIndex();
-            updateSuggestedQuestions();
-            
-            // Load AI models (these are cached by Transformers.js automatically)
-            await loadModels();
-            
-            initVoice();
-            
-            setProgress(100, "Complete!", "Ready for questions");
-            setTimeout(() => {
-                loaderDiv.style.display = 'none';
-                addMessage("✅ TETR Wiki is ready! Ask me anything about programs, admissions, or policies.", 'bot', 0.99);
-                
-                if(knowledgeBase.length > 0 && knowledgeBase[0][columnMap.title]) {
-                    addMessage(`💡 Try asking: "${knowledgeBase[0][columnMap.title]}"`, 'bot', 0.5);
-                }
-            }, 800);
-            
-        } catch(error) {
-            debugInfo.innerHTML += `<br>❌ Error: ${error.message}`;
-            setTimeout(() => {
-                loaderDiv.style.display = 'none';
-                addMessage("⚠️ Load issue. Please refresh.", 'bot', 0.1);
-            }, 1000);
+        if (!fuseIndex || knowledgeBase.length === 0) {
+            const errorMsg = "Knowledge base not loaded yet. Please wait or refresh the page.";
+            logToDebug(errorMsg, true);
+            addMessage(errorMsg, 'bot');
+            return;
         }
+        
+        logToDebug(`Searching ${knowledgeBase.length} documents...`);
+        const results = fuseIndex.search(question);
+        logToDebug(`Found ${results.length} results`);
+        
+        if (results.length === 0) {
+            addMessage("❌ No matches found. Please try different keywords.", 'bot');
+            // Show sample of what's in the database
+            const sample = knowledgeBase.slice(0, 3).map(row => {
+                const firstCol = columnNames[1] || columnNames[0];
+                return row[firstCol];
+            }).join(', ');
+            addMessage(`📚 Database contains topics like: ${sample}`, 'bot');
+            return;
+        }
+        
+        const best = results[0];
+        const score = best.score;
+        const confidence = Math.round((1 - Math.min(score, 1)) * 100);
+        
+        logToDebug(`Best match score: ${score}, confidence: ${confidence}%`);
+        logToDebug(`Match details: ${JSON.stringify(best.item).substring(0, 200)}`);
+        
+        // Build answer from available columns
+        let answerHtml = `<b>🔍 Match found (${confidence}% confidence)</b><br><br>`;
+        
+        // Display all non-empty fields
+        for (let col of columnNames) {
+            const value = best.item[col];
+            if (value && value.toString().trim()) {
+                answerHtml += `<b>${col}:</b> ${value}<br><br>`;
+            }
+        }
+        
+        addMessage(answerHtml, 'bot');
     }
     
-    askBtn.addEventListener('click', askBot);
-    userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') askBot(); });
+    function clearDebug() {
+        document.getElementById('debugPanel').innerHTML = "📡 Debug console cleared<br>";
+        logToDebug("Debug console cleared");
+    }
     
-    bootstrap();
+    // Start loading
+    loadCSV();
 </script>
 </body>
 </html>
