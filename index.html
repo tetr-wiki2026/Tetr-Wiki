@@ -100,7 +100,7 @@
 
         try {
             updateProgress(20, "Fetching Knowledge Base...");
-            const response = await fetch(CSV_URL);
+            const response = await fetch(CSV_URL + "&cache_bust=" + Date.now());
             const csvText = await response.text();
             kbData = Papa.parse(csvText, { header: true }).data.filter(r => r.Heading);
 
